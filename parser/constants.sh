@@ -1,38 +1,33 @@
-#!/bin/bash
-readonly -A REGEX=(
-  # A line containing only (valid) whitespace:
+readonly -A R=(
+  # General shorthands:
+  [w]='[a-zA-Z0-9_]'
+  [W]='[^a-zA-Z0-9_]'
+  [d]='[0-9]'
+  [D]='[^0-9]'
+  [h]='[0-9a-fA-F]'
+  [H]='[^0-9a-fA-F]'
+  [s]='[ \t\r\n\f]'
+  [S]='[^ \t\r\n\f]'
+
+  # Specific YAML patterns:
   [blank-line]='^ *$'
-  # A line contatining a YAML directive:
-  [directive]='^\(?:--- \)? *%\(\w+\)'
-  # A document delimiter line:
-  [document-delimiter]='^ *\(?:---\|[.][.][.]\)'
-  # A node anchor or alias:
-  [node-anchor-alias]='[&*][a-zA-Z0-9_-]+'
-  # A tag:
+  [directive]="^(--- )? *%(${R[w]}+)"
+  [document-delimiter]='^ *(---|[.][.][.])'
+  [node-anchor-alias]="[&*][${R[w]}-]+"
   [tag]='!!?[^ \n]+'
-  # A bare scalar:
-  [bare-scalar]='\(?:[^-:,#!\n{\[ ]\|[^#!\n{\[ ]\S-\)[^#\n]*?'
-  # A single YAML hash key:
-  [hash-key_1]='\(?:^\(?:--- \)?\|{\|\(?:[-,] +\)+\) *'
-  [hash-key_2]="\\(?:${REGEX[tag]} +\\)?"
-  [hash-key_3]="\\(${REGEX[bare-scalar]}\\) *:"
-  [hash-key_4]='\(?: +\|$\)'
+  [bare-scalar]="([^-:,#!\n{\[ ]|[^#!\n{\[ ]${R[S]})[^#\n]*?"
+  [hash-key]="(^(--- )?|{|([-,] +)+) *(${R[tag]} +)?(${R[bare-scalar]}) *:( +|\$)"
   # The beginning of a scalar context:
-  [scalar-context_1]='\(?:^\(?:--- \)?\|{\|\(?: *[-,] +\)+\) *'
-  [scalar-context_2]="\\(?:${REGEX[bare-scalar]} *: \\)?"
+  [scalar-context]="(^(--- )?|{|( *[-,] +)+) *(${R[bare-scalar]} *: )?"
   # A line beginning a nested structure:
-  [nested-map]=".*: *\\(?:&.*\\|{ *\\|${REGEX[tag]} *\\)?\$"
+  [nested-map]=".*: *(&.*|{ *|${R[tag]} *)?\$"
   # The substring start of a block literal:
-  [block-literal-base]=" *[>|][-+0-9]* *\\(?:\n\\|\\'\\)"
+  [block-literal-base]=" *[>|][-+0-9]* *(\n|')"
   # A line beginning a YAML block literal:
-  [block-literal_1]="${REGEX[scalar-context]}"
-  [block-literal_2]="\\(?:${REGEX[tag]}\\)?"
-  [block-literal_3]="${REGEX[block-literal-base]}"
+  [block-literal]="${R[scalar-context]}(${R[tag]})?${R[block-literal-base]}"
   # A line containing one or more nested YAML sequences:
-  [nested-sequence_1]='^\(?:\(?: *- +\)+\|\(:? *-$\)\)'
-  [nested-sequence_2]="\\(?:${REGEX[bare-scalar]} *:\\(?: +.*\\)?\\)?\$"
+  [nested-sequence]="^(( *- +)+|( *-\$))(${R[bare-scalar]} *:( +.*)?)?\$"
   # Certain scalar constants in scalar context:
-  [constant-scalars_1]='\(?:^\|\(?::\|-\|,\|{\|\[\) +\) *'
-  [constant-scalars_2]='\(~\|null\|Null\|NULL\|.nan\|.NaN\|.NAN\|.inf\|.Inf\|.INF\|-.inf\|-.Inf\|-.INF\|y\|Y\|yes\|Yes\|YES\|n\|N\|no\|No\|NO\|true\|True\|TRUE\|false\|False\|FALSE\|on\|On\|ON\|off\|Off\|OFF\)'
-  [constant-scalars_3]=' *$'
+  [constant-scalars]="(^|(:|-|,|{|\[) +) *(~|null|Null|NULL|.nan|.NaN|.NAN|.inf|.Inf|.INF|-.inf|-.Inf|-.INF|y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF) *\$"
 )
+readonly -i INDENT_OFFSET=2
