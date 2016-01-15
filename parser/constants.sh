@@ -30,4 +30,4 @@ readonly -A R=(
   # Certain scalar constants in scalar context:
   [constant-scalars]="(^|(:|-|,|{|\[) +) *(~|null|Null|NULL|.nan|.NaN|.NAN|.inf|.Inf|.INF|-.inf|-.Inf|-.INF|y|Y|yes|Yes|YES|n|N|no|No|NO|true|True|TRUE|false|False|FALSE|on|On|ON|off|Off|OFF) *\$"
 )
-readonly -i INDENT_OFFSET=2
+typeset -ri INDENT_OFFSET=2

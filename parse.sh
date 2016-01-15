@@ -1,14 +1,17 @@
 #!/bin/bash
 #%
-#% ${PROGNAME} - Descripción corta de qué hace el script
+#% ${PROGNAME} - read and parse yaml files
 #%
-#% usage: ${PROGNAME}.sh <-c|-d|-s> [-u <user> -p <password>]
+#% usage: ${PROGNAME}.sh <-c|-p|-f> -f <files>
 #%
 #% where:
 #%
-#%  -c|--connect    :  blabla blabla blabla
-#%  -d|--disconnect :  blabla blabla blabla
-#%  -s|--status     :  blabla blabla blabla
+#%  -h|--help       :  show this help
+#%  -v|--verbose    :  verbose mode
+#%  -d|--debug      :  debug mode, set -x
+#%  -c|--check      :  check the file is yaml
+#%  -p|--parse      :  parse the content and store it in memory
+#%  -f|--file       :  file or files. Unix wilcards allowed. Must be last option
 #%
 #% history:
 #% 2016-01-15       :  created by Rubén Ibáñez Carmona
@@ -25,12 +28,10 @@ readonly ARGS="$@"
 . $SCRIPTDIR/parser/constants.sh
 
 # load parser functions:
-. $SCRIPTDIR/parser/functions.sh
+# . $SCRIPTDIR/parser/functions.sh
 
 setx=usage
-#==============================
 function usage ()
-#==============================
 {
   if [ $# -lt 1 ]; then
     sed -n '
@@ -43,9 +44,7 @@ function usage ()
 } # usage
 
 # setx=_exit
-#==============================
 # function _exit ()
-#==============================
 # {
 #   rm -fr ${tmpDir}
 #   exit $1
@@ -53,18 +52,16 @@ function usage ()
 
 
 
-# setx=main
-#==============================
-# function main ()
-#==============================
-# {
-#   local ...=...
-# } # main
+setx=main
+function main ()
+{
+  # local ...=...
+  usage $ARGS
+  # readCmdLineParameters $ARGS
+} # main
 
 #==============================
 # MAIN SHELL BODY
 #==============================
-usage $ARGS
-# readCmdLineParameters $ARGS
-# main
+main
 # _exit
