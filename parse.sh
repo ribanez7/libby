@@ -11,7 +11,7 @@
 #%  -d|--debug      :  debug mode, set -x
 #%  -c|--check      :  check the file is yaml
 #%  -p|--parse      :  parse the content and store it in memory
-#%  -f|--file       :  file or files. Unix wilcards allowed. Must be last option
+#%  -f|--file       :  file or files. Wilcards allowed. Must be last option
 #%
 #% history:
 #% 2016-01-15       :  created by Rubén Ibáñez Carmona
@@ -110,7 +110,8 @@ setx=YAMLDump
 function YAMLDump()
 #==============================
 # return strings
-# Dump YAML from BASH file with var declarations statically
+# Dump YAML from BASH file with var declarations statically.
+# Don't pass the parameters you want to use with its default values.
 # -f file : array BASH vars
 # -i int  : $indent Pass in false to use the default, which is 2
 # -w int  : int $wordwrap Pass in 0 for no wordwrap, false for default (40)
@@ -132,55 +133,45 @@ function YAMLDump()
   done
   shift $(($OPTIND - 1))
   
+  export LIBBY='LIBBY_'
+  echo dump ${array} ${indent} ${wordwrap} ${no_opening_dashes}
 } # YAMLDump
 
+setx=YAMLDump
+#==============================
+function dump()
+#==============================
+# return strings
+# Dump YAML from BASH file with var declarations statically.
+# Don't pass the parameters you want to use with its default values.
+# -f file : array BASH vars
+# -i int  : $indent Pass in false to use the default, which is 2
+# -w int  : int $wordwrap Pass in 0 for no wordwrap, false for default (40)
+# -n      : int $no_opening_dashes Do not start YAML file with "---\n".
+#==============================
+{
+  local array string=''
+  local -i indent=${INDENT}} \
+           wordwrap=${WORDWRAP} \
+           no_opening_dashes=1 # use 0 to avoid this header.
+  echo
+  while getopts f:i:w:n opt ; do
+    case "$opt" in
+      f) array="$OPTARG";;
+      i) is_integer? "$OPTARG" && indent="$OPTARG"   || : ;;
+      w) is_integer? "$OPTARG" && wordwrap="$OPTARG" || : ;;
+      n) no_opening_dashes=0 ;;
+    esac
+  done
+  shift $(($OPTIND - 1))
+
+  _dumpIndent=${indent}
+  _dumpWordWrap=${wordwrap}
+  [ ${no_opening_dashes} -eq 0 ] || string="---\n"
+
+} # dump
+  
 ################################################################################################
-#      * Dump YAML from PHP array statically
-#      *
-#      * The dump method, when supplied with an array, will do its best
-#      * to convert the array into friendly YAML.  Pretty simple.  Feel free to
-#      * save the returned string as nothing.yaml and pass it around.
-#      *
-#      * Oh, and you can decide how big the indent is and what the wordwrap
-#      * for folding is.  Pretty cool -- just pass in 'false' for either if
-#      * you want to use the default.
-#      *
-#      * Indent's default is 2 spaces, wordwrap's default is 40 characters.  And
-#      * you can turn off wordwrap by passing in 0.
-#      *
-#      * @access public
-#      * @return string
-#      * @param array $array PHP array
-#      * @param int $indent Pass in false to use the default, which is 2
-#      * @param int $wordwrap Pass in 0 for no wordwrap, false for default (40)
-#      * @param int $no_opening_dashes Do not start YAML file with "---\n"
-#      */
-#   public static function YAMLDump($array, $indent = false, $wordwrap = false, $no_opening_dashes = false) {
-#     $spyc = new Spyc;
-#     return $spyc->dump($array, $indent, $wordwrap, $no_opening_dashes);
-#   }
-
-
-#   /**
-#      * Dump PHP array to YAML
-#      *
-#      * The dump method, when supplied with an array, will do its best
-#      * to convert the array into friendly YAML.  Pretty simple.  Feel free to
-#      * save the returned string as tasteful.yaml and pass it around.
-#      *
-#      * Oh, and you can decide how big the indent is and what the wordwrap
-#      * for folding is.  Pretty cool -- just pass in 'false' for either if
-#      * you want to use the default.
-#      *
-#      * Indent's default is 2 spaces, wordwrap's default is 40 characters.  And
-#      * you can turn off wordwrap by passing in 0.
-#      *
-#      * @access public
-#      * @return string
-#      * @param array $array PHP array
-#      * @param int $indent Pass in false to use the default, which is 2
-#      * @param int $wordwrap Pass in 0 for no wordwrap, false for default (40)
-#      */
 #   public function dump($array,$indent = false,$wordwrap = false, $no_opening_dashes = false) {
 #     // Dumps to some very clean YAML.  We'll have to add some more features
 #     // and options soon.  And better support for folding.
@@ -1151,11 +1142,11 @@ function usage ()
 #==============================
 {
   if [ $# -lt 1 ]; then
-    sed -n '
+    sed -n "
       /^#%/ {
-        s/${PROGNAME}/'${PROGNAME}'/g
+        s/\${PROGNAME}/${PROGNAME}/g
         s/^#%//p
-      }' $0
+      }" $0
     exit 1
   fi
 } # usage
