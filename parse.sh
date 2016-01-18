@@ -122,19 +122,23 @@ function YAMLDump()
   local -i indent=${INDENT}} \
            wordwrap=${WORDWRAP} \
            no_opening_dashes=1 # use 0 to avoid this header.
-  echo
+
   while getopts f:i:w:n opt ; do
     case "$opt" in
       f) array="$OPTARG";;
-      i) indent="$OPTARG";;
-      w) wordwrap="$OPTARG";;
+      i) is_integer? "$OPTARG" && indent="$OPTARG"   || : ;;
+      w) is_integer? "$OPTARG" && wordwrap="$OPTARG" || : ;;
       n) no_opening_dashes=0 ;;
     esac
   done
   shift $(($OPTIND - 1))
   
   export LIBBY='LIBBY_'
-  echo dump ${array} ${indent} ${wordwrap} ${no_opening_dashes}
+  if [ ${no_opening_dashes} -eq 1 ]; then
+    dump -f "${array}" -i "${indent}" -w "${wordwrap}"
+  else
+    dump -f "${array}" -i "${indent}" -w "${wordwrap}" -n
+  fi
 } # YAMLDump
 
 setx=YAMLDump
@@ -154,7 +158,7 @@ function dump()
   local -i indent=${INDENT}} \
            wordwrap=${WORDWRAP} \
            no_opening_dashes=1 # use 0 to avoid this header.
-  echo
+
   while getopts f:i:w:n opt ; do
     case "$opt" in
       f) array="$OPTARG";;
@@ -169,6 +173,16 @@ function dump()
   _dumpWordWrap=${wordwrap}
   [ ${no_opening_dashes} -eq 0 ] || string="---\n"
 
+  if [ -f ${array} ]; then
+#       $array = (array)$array;
+#       $previous_key = -1;
+#       foreach ($array as $key => $value) {
+#         if (!isset($first_key)) $first_key = $key;
+#         $string .= $this->_yamlize($key,$value,0,$previous_key, $first_key, $array);
+#         $previous_key = $key;
+#       }
+  fi
+  printf '%s\n' "${string}"
 } # dump
   
 ################################################################################################
