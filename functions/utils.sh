@@ -5,5 +5,16 @@ function is_valid_string? ()
 
 function is_integer? ()
 {
-  [[ $@ =~ ^-?[0-9]+$ ]]
+  #[[ $@ =~ ^-?[0-9]+$ ]]
+  [ $@ -eq $@ ] > /dev/null
+}
+
+function is_function? ()
+{
+  type -t $1
+}
+
+function is_alias? ()
+{
+  type -t $1
 }

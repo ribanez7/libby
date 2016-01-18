@@ -111,17 +111,27 @@ function YAMLDump()
 #==============================
 # return strings
 # Dump YAML from BASH file with var declarations statically
-# 1st param array $array PHP array
-# 2nd param int $indent Pass in false to use the default, which is 2
-# 3rd param int $wordwrap Pass in 0 for no wordwrap, false for default (40)
-# 4th param int $no_opening_dashes Do not start YAML file with "---\n". Pass 0 to avoid.
+# -f file : array BASH vars
+# -i int  : $indent Pass in false to use the default, which is 2
+# -w int  : int $wordwrap Pass in 0 for no wordwrap, false for default (40)
+# -n      : int $no_opening_dashes Do not start YAML file with "---\n".
 #==============================
 {
-  local array=$1
-  local -i indent=${2:-${INDENT}} \
-           wordwrap=${3:-${WORDWRAP}} \
-           no_opening_dashes=${4:-1} # use 0 to avoid this header.
+  local array
+  local -i indent=${INDENT}} \
+           wordwrap=${WORDWRAP} \
+           no_opening_dashes=1 # use 0 to avoid this header.
   echo
+  while getopts f:i:w:n opt ; do
+    case "$opt" in
+      f) array="$OPTARG";;
+      i) indent="$OPTARG";;
+      w) wordwrap="$OPTARG";;
+      n) no_opening_dashes=0 ;;
+    esac
+  done
+  shift $(($OPTIND - 1))
+  
 } # YAMLDump
 
 ################################################################################################
