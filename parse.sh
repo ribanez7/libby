@@ -38,7 +38,7 @@ typeset -i setting_dump_force_quotes=0 \
            _containsGroupAnchor=0 \
            _containsGroupAlias=0
 ## Typed:
-typeset -i _dumpIndent _dumpWordWrap indent
+typeset -i _dumpIndent _dumpWordWrap INDENT=2 WORDWRAP=40
 typeset -A SavedGroups delayedPath
 ## Untyped:
 path=''
@@ -62,6 +62,7 @@ setx=load
 function load ()
 #==============================
 # Load valid YAML string to libby:
+#==============================
 {
   local input="$@"
   echo __loadString $input
@@ -72,6 +73,7 @@ setx=loadFile
 function loadFile ()
 #==============================
 # Load a valid YAML file to libby:
+#==============================
 {
   local file=$1
   echo __load $file
@@ -82,29 +84,45 @@ setx=YAMLLoad
 function YAMLLoad ()
 #==============================
 # Load a valid YAML file to the best bash structure:
+#==============================
 {
   export LIBBY='LIBBY_'
   local file=$1
   echo __load $file
 } # YAMLLoad
 
-setx=YAMLLoadString
+setx=YAMLLoad
 #==============================
 function YAMLLoadString ()
 #==============================
 # Load a valid YAML string to the best bash structure.
 # It should handle these sort of strings:
 # "---\n0: hello world\n"
+#==============================
 {
   export LIBBY='LIBBY_'
   local input=$1
   echo __loadString $input
 } # YAMLLoadString
 
-
-
-
-
+setx=YAMLDump
+#==============================
+function YAMLDump()
+#==============================
+# return strings
+# Dump YAML from BASH file with var declarations statically
+# 1st param array $array PHP array
+# 2nd param int $indent Pass in false to use the default, which is 2
+# 3rd param int $wordwrap Pass in 0 for no wordwrap, false for default (40)
+# 4th param int $no_opening_dashes Do not start YAML file with "---\n". Pass 0 to avoid.
+#==============================
+{
+  local array=$1
+  local -i indent=${2:-${INDENT}} \
+           wordwrap=${3:-${WORDWRAP}} \
+           no_opening_dashes=${4:-1} # use 0 to avoid this header.
+  echo
+} # YAMLDump
 
 ################################################################################################
 #      * Dump YAML from PHP array statically
