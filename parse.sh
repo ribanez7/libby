@@ -59,33 +59,27 @@ _nodeId=''
 
 setx=load
 #==============================
-function load ()
-#==============================
 # Load valid YAML string to libby:
 #==============================
-{
+load() {
   local input="$@"
   echo __loadString $input
 } # load
 
 setx=loadFile
 #==============================
-function loadFile ()
-#==============================
 # Load a valid YAML file to libby:
 #==============================
-{
+loadFile() {
   local file=$1
   echo __load $file
 } # loadFile
 
 setx=YAMLLoad
 #==============================
-function YAMLLoad ()
-#==============================
 # Load a valid YAML file to the best bash structure:
 #==============================
-{
+YAMLLoad() {
   export LIBBY='LIBBY_'
   local file=$1
   echo __load $file
@@ -93,21 +87,17 @@ function YAMLLoad ()
 
 setx=YAMLLoad
 #==============================
-function YAMLLoadString ()
-#==============================
 # Load a valid YAML string to the best bash structure.
 # It should handle these sort of strings:
 # "---\n0: hello world\n"
 #==============================
-{
+YAMLLoadString() {
   export LIBBY='LIBBY_'
   local input=$1
   echo __loadString $input
 } # YAMLLoadString
 
 setx=YAMLDump
-#==============================
-function YAMLDump()
 #==============================
 # return strings
 # Dump YAML from BASH file with var declarations statically.
@@ -117,7 +107,7 @@ function YAMLDump()
 # -w int  : int $wordwrap Pass in 0 for no wordwrap, false for default (40)
 # -n      : int $no_opening_dashes Do not start YAML file with "---\n".
 #==============================
-{
+YAMLDump() {
   local array
   local -i indent=${INDENT}} \
            wordwrap=${WORDWRAP} \
@@ -141,11 +131,9 @@ function YAMLDump()
   fi
 } # YAMLDump
 
-setx=YAMLDump
+setx=dump
 #==============================
-function dump()
-#==============================
-# return strings
+# return strings: dumps clean YAML.
 # Dump YAML from BASH file with var declarations statically.
 # Don't pass the parameters you want to use with its default values.
 # -f file : array BASH vars
@@ -153,7 +141,7 @@ function dump()
 # -w int  : int $wordwrap Pass in 0 for no wordwrap, false for default (40)
 # -n      : int $no_opening_dashes Do not start YAML file with "---\n".
 #==============================
-{
+dump() {
   local array string=''
   local -i indent=${INDENT}} \
            wordwrap=${WORDWRAP} \
@@ -173,6 +161,7 @@ function dump()
   _dumpWordWrap=${wordwrap}
   [ ${no_opening_dashes} -eq 0 ] || string="---\n"
 
+  # New YAML document
   if [ -f ${array} ]; then
 #       $array = (array)$array;
 #       $previous_key = -1;
@@ -184,179 +173,181 @@ function dump()
   fi
   printf '%s\n' "${string}"
 } # dump
-  
+
+setx='__yamelize'
+#==============================
+# Attempts to convert a key / value array item to YAML
+# private
+# return string
+# -k $key          : The name of the key
+# -v $value        : The value of the item
+# -i $indent       : The indent of the current node
+# -p $previous_key : by default -1
+# -f $first_key    : by default 0
+# -s $source_array : by default none.
+#==============================
+__yamelize() {
+  local key value
+  local -i indent \
+           previous_key=-1 \
+           first_key=0
+
+  while getopts :k:v:i:p:f:s: opt ; do
+    case "$opt" in
+      k) key="$OPTARG";;
+      v) value="$OPTARG";;
+      i) is_integer? "$OPTARG" && indent="$OPTARG"       || : ;;
+      p) is_integer? "$OPTARG" && previous_key="$OPTARG" || : ;;
+      f) is_integer? "$OPTARG" && first_key="$OPTARG"    || : ;;
+      s) source_array="$OPTARG";;
+    esac
+  done
+  shift $(($OPTIND - 1))
+  #   if (is_array($value)) {
+  #   if (empty ($value))
+  #     return $this->_dumpNode($key, array(), $indent, $previous_key, $first_key, $source_array);
+  #   // It has children.  What to do?
+  #   // Make it the right kind of item
+  #   $string = $this->_dumpNode($key, self::REMPTY, $indent, $previous_key, $first_key, $source_array);
+  #   // Add the indent
+  #   $indent += $this->_dumpIndent;
+  #   // Yamlize the array
+  #   $string .= $this->_yamlizeArray($value,$indent);
+  # } elseif (!is_array($value)) {
+  #   // It doesn't have children.  Yip.
+  #   $string = $this->_dumpNode($key, $value, $indent, $previous_key, $first_key, $source_array);
+  # }
+  # return $string;
+} # __yamleize
+
+setx='__yamelizeArray'
+#==============================
+# Attempts to convert an array to YAML
+# @access private
+# @return string
+# @param $array The array you want to convert
+# @param $indent The indent of the current level
+#==============================
+__yamelizeArray() { 
+#($array,$indent)
+  # if (is_array($array)) {
+  #   $string = '';
+  #   $previous_key = -1;
+  #   foreach ($array as $key => $value) {
+  #     if (!isset($first_key)) $first_key = $key;
+  #     $string .= $this->_yamlize($key, $value, $indent, $previous_key, $first_key, $array);
+  #     $previous_key = $key;
+  #   }
+  #   return $string;
+  # } else {
+  #   return false;
+  # }
+} # __yamleizeArray
+
+setx='__dumpNode'
+#==============================
+# Returns YAML from a key and a value
+# @access private
+# @return string
+# @param $key The name of the key
+# @param $value The value of the item
+# @param $indent The indent of the current node
+#==============================
+__dumpNode() {
+#($key, $value, $indent, $previous_key = -1, $first_key = 0, $source_array = null)
+  # // do some folding here, for blocks
+  # if (is_string ($value) && ((strpos($value,"\n") !== false || strpos($value,": ") !== false || strpos($value,"- ") !== false ||
+  #   strpos($value,"*") !== false || strpos($value,"#") !== false || strpos($value,"<") !== false || strpos($value,">") !== false || strpos ($value, '%') !== false || strpos ($value, '  ') !== false ||
+  #   strpos($value,"[") !== false || strpos($value,"]") !== false || strpos($value,"{") !== false || strpos($value,"}") !== false) || strpos($value,"&") !== false || strpos($value, "'") !== false || strpos($value, "!") === 0 ||
+  #   substr ($value, -1, 1) == ':')
+  # ) {
+  #   $value = $this->_doLiteralBlock($value,$indent);
+  # } else {
+  #   $value  = $this->_doFolding($value,$indent);
+  # }
+
+  # if ($value === array()) $value = '[ ]';
+  # if ($value === "") $value = '""';
+  # if (self::isTranslationWord($value)) {
+  #   $value = $this->_doLiteralBlock($value, $indent);
+  # }
+  # if (trim ($value) != $value)
+  #    $value = $this->_doLiteralBlock($value,$indent);
+
+  # if (is_bool($value)) {
+  #    $value = $value ? "true" : "false";
+  # }
+
+  # if ($value === null) $value = 'null';
+  # if ($value === "'" . self::REMPTY . "'") $value = null;
+
+  # $spaces = str_repeat(' ',$indent);
+
+  # //if (is_int($key) && $key - 1 == $previous_key && $first_key===0) {
+  # if (is_array ($source_array) && array_keys($source_array) === range(0, count($source_array) - 1)) {
+  #   // It's a sequence
+  #   $string = $spaces.'- '.$value."\n";
+  # } else {
+  #   // if ($first_key===0)  throw new Exception('Keys are all screwy.  The first one was zero, now it\'s "'. $key .'"');
+  #   // It's mapped
+  #   if (strpos($key, ":") !== false || strpos($key, "#") !== false) { $key = '"' . $key . '"'; }
+  #   $string = rtrim ($spaces.$key.': '.$value)."\n";
+  # }
+  # return $string;
+} # __dumpNode
+
+setx='__doLiteralBlock'
+#==============================
+# Creates a literal block for dumping
+# @access private
+# @return string
+# @param $value
+# @param $indent int The value of the indent
+#==============================
+__doLiteralBlock() {
+#($value,$indent)
+  # if ($value === "\n") return '\n';
+  # if (strpos($value, "\n") === false && strpos($value, "'") === false) {
+  #   return sprintf ("'%s'", $value);
+  # }
+  # if (strpos($value, "\n") === false && strpos($value, '"') === false) {
+  #   return sprintf ('"%s"', $value);
+  # }
+  # $exploded = explode("\n",$value);
+  # $newValue = '|';
+  # if (isset($exploded[0]) && ($exploded[0] == "|" || $exploded[0] == "|-" || $exploded[0] == ">")) {
+  #     $newValue = $exploded[0];
+  #     unset($exploded[0]);
+  # }
+  # $indent += $this->_dumpIndent;
+  # $spaces   = str_repeat(' ',$indent);
+  # foreach ($exploded as $line) {
+  #   $line = trim($line);
+  #   if (strpos($line, '"') === 0 && strrpos($line, '"') == (strlen($line)-1) || strpos($line, "'") === 0 && strrpos($line, "'") == (strlen($line)-1)) {
+  #     $line = substr($line, 1, -1);
+  #   }
+  #   $newValue .= "\n" . $spaces . ($line);
+  # }
+  # return $newValue;
+} # __doLiteralBlock
+
+setx='__doFolding'
+#==============================
+# Creates a literal block for dumping
+# @access private
+# @return string
+# @param $value
+# @param $indent int The value of the indent
+#==============================
+__doFolding ($value,$indent)
+{
+
+
 ################################################################################################
-#   public function dump($array,$indent = false,$wordwrap = false, $no_opening_dashes = false) {
-#     // Dumps to some very clean YAML.  We'll have to add some more features
-#     // and options soon.  And better support for folding.
-
-#     // New features and options.
-#     if ($indent === false or !is_numeric($indent)) {
-#       $this->_dumpIndent = 2;
-#     } else {
-#       $this->_dumpIndent = $indent;
-#     }
-
-#     if ($wordwrap === false or !is_numeric($wordwrap)) {
-#       $this->_dumpWordWrap = 40;
-#     } else {
-#       $this->_dumpWordWrap = $wordwrap;
-#     }
-
-#     // New YAML document
-#     $string = "";
-#     if (!$no_opening_dashes) $string = "---\n";
-
-#     // Start at the base of the array and move through it.
-#     if ($array) {
-#       $array = (array)$array;
-#       $previous_key = -1;
-#       foreach ($array as $key => $value) {
-#         if (!isset($first_key)) $first_key = $key;
-#         $string .= $this->_yamlize($key,$value,0,$previous_key, $first_key, $array);
-#         $previous_key = $key;
-#       }
-#     }
-#     return $string;
-#   }
-
-#   /**
-#      * Attempts to convert a key / value array item to YAML
-#      * @access private
-#      * @return string
-#      * @param $key The name of the key
-#      * @param $value The value of the item
-#      * @param $indent The indent of the current node
-#      */
-#   private function _yamlize($key,$value,$indent, $previous_key = -1, $first_key = 0, $source_array = null) {
-#     if (is_array($value)) {
-#       if (empty ($value))
-#         return $this->_dumpNode($key, array(), $indent, $previous_key, $first_key, $source_array);
-#       // It has children.  What to do?
-#       // Make it the right kind of item
-#       $string = $this->_dumpNode($key, self::REMPTY, $indent, $previous_key, $first_key, $source_array);
-#       // Add the indent
-#       $indent += $this->_dumpIndent;
-#       // Yamlize the array
-#       $string .= $this->_yamlizeArray($value,$indent);
-#     } elseif (!is_array($value)) {
-#       // It doesn't have children.  Yip.
-#       $string = $this->_dumpNode($key, $value, $indent, $previous_key, $first_key, $source_array);
-#     }
-#     return $string;
-#   }
-
-#   /**
-#      * Attempts to convert an array to YAML
-#      * @access private
-#      * @return string
-#      * @param $array The array you want to convert
-#      * @param $indent The indent of the current level
-#      */
-#   private function _yamlizeArray($array,$indent) {
-#     if (is_array($array)) {
-#       $string = '';
-#       $previous_key = -1;
-#       foreach ($array as $key => $value) {
-#         if (!isset($first_key)) $first_key = $key;
-#         $string .= $this->_yamlize($key, $value, $indent, $previous_key, $first_key, $array);
-#         $previous_key = $key;
-#       }
-#       return $string;
-#     } else {
-#       return false;
-#     }
-#   }
-
-#   /**
-#      * Returns YAML from a key and a value
-#      * @access private
-#      * @return string
-#      * @param $key The name of the key
-#      * @param $value The value of the item
-#      * @param $indent The indent of the current node
-#      */
-#   private function _dumpNode($key, $value, $indent, $previous_key = -1, $first_key = 0, $source_array = null) {
-#     // do some folding here, for blocks
-#     if (is_string ($value) && ((strpos($value,"\n") !== false || strpos($value,": ") !== false || strpos($value,"- ") !== false ||
-#       strpos($value,"*") !== false || strpos($value,"#") !== false || strpos($value,"<") !== false || strpos($value,">") !== false || strpos ($value, '%') !== false || strpos ($value, '  ') !== false ||
-#       strpos($value,"[") !== false || strpos($value,"]") !== false || strpos($value,"{") !== false || strpos($value,"}") !== false) || strpos($value,"&") !== false || strpos($value, "'") !== false || strpos($value, "!") === 0 ||
-#       substr ($value, -1, 1) == ':')
-#     ) {
-#       $value = $this->_doLiteralBlock($value,$indent);
-#     } else {
-#       $value  = $this->_doFolding($value,$indent);
-#     }
-
-#     if ($value === array()) $value = '[ ]';
-#     if ($value === "") $value = '""';
-#     if (self::isTranslationWord($value)) {
-#       $value = $this->_doLiteralBlock($value, $indent);
-#     }
-#     if (trim ($value) != $value)
-#        $value = $this->_doLiteralBlock($value,$indent);
-
-#     if (is_bool($value)) {
-#        $value = $value ? "true" : "false";
-#     }
-
-#     if ($value === null) $value = 'null';
-#     if ($value === "'" . self::REMPTY . "'") $value = null;
-
-#     $spaces = str_repeat(' ',$indent);
-
-#     //if (is_int($key) && $key - 1 == $previous_key && $first_key===0) {
-#     if (is_array ($source_array) && array_keys($source_array) === range(0, count($source_array) - 1)) {
-#       // It's a sequence
-#       $string = $spaces.'- '.$value."\n";
-#     } else {
-#       // if ($first_key===0)  throw new Exception('Keys are all screwy.  The first one was zero, now it\'s "'. $key .'"');
-#       // It's mapped
-#       if (strpos($key, ":") !== false || strpos($key, "#") !== false) { $key = '"' . $key . '"'; }
-#       $string = rtrim ($spaces.$key.': '.$value)."\n";
-#     }
-#     return $string;
-#   }
-
-#   /**
-#      * Creates a literal block for dumping
-#      * @access private
-#      * @return string
-#      * @param $value
-#      * @param $indent int The value of the indent
-#      */
-#   private function _doLiteralBlock($value,$indent) {
-#     if ($value === "\n") return '\n';
-#     if (strpos($value, "\n") === false && strpos($value, "'") === false) {
-#       return sprintf ("'%s'", $value);
-#     }
-#     if (strpos($value, "\n") === false && strpos($value, '"') === false) {
-#       return sprintf ('"%s"', $value);
-#     }
-#     $exploded = explode("\n",$value);
-#     $newValue = '|';
-#     if (isset($exploded[0]) && ($exploded[0] == "|" || $exploded[0] == "|-" || $exploded[0] == ">")) {
-#         $newValue = $exploded[0];
-#         unset($exploded[0]);
-#     }
-#     $indent += $this->_dumpIndent;
-#     $spaces   = str_repeat(' ',$indent);
-#     foreach ($exploded as $line) {
-#       $line = trim($line);
-#       if (strpos($line, '"') === 0 && strrpos($line, '"') == (strlen($line)-1) || strpos($line, "'") === 0 && strrpos($line, "'") == (strlen($line)-1)) {
-#         $line = substr($line, 1, -1);
-#       }
-#       $newValue .= "\n" . $spaces . ($line);
-#     }
-#     return $newValue;
-#   }
-
-#   /**
 #      * Folds a string of text, if necessary
 #      * @access private
 #      * @return string
 #      * @param $value The string you wish to fold
-#      */
 #   private function _doFolding($value,$indent) {
 #     // Don't do anything if wordwrap is set to 0
 
@@ -1152,9 +1143,7 @@ function dump()
 
 setx=usage
 #==============================
-function usage ()
-#==============================
-{
+usage() {
   if [ $# -lt 1 ]; then
     sed -n "
       /^#%/ {
@@ -1168,9 +1157,7 @@ function usage ()
 
 # setx=_exit
 # #==============================
-# function _exit ()
-# #==============================
-# {
+# _exit() {
 #   rm -fr ${tmpDir}
 #   exit $1
 # } # _exit
@@ -1180,8 +1167,7 @@ function usage ()
 # MAIN SHELL BODY
 #==============================
 setx=main
-function main ()
-{
+main() {
   # local ...=...
   usage $ARGS
   # readCmdLineParameters $ARGS

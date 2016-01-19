@@ -11,5 +11,9 @@ there will be a "composer" or "bundler", called libby, wich will open the door t
 
 I'll post the project on 03/03/2016
 
+Remember:
+* Bash allocate memory for variable names dynamically without limitation.
+** that offers a very big advantage for us.
+
 As reference:
 http://lzone.de/cheat-sheet/YAML
