@@ -48,9 +48,8 @@ _nodeId=''
 
 # REQUIREMENTS:
 # =============
-. $SCRIPTDIR/parser/constants.sh
 . $SCRIPTDIR/functions/utils.sh
-# . $SCRIPTDIR/parser/functions.sh
+. $SCRIPTDIR/parser/{constants,functions}.sh
 
 # METHOD DEFINITIONS:
 # ===================
@@ -1014,7 +1013,17 @@ __clearBiggerPathValues() {
 setx='__isComment'
 #==============================
 __isComment() {
-#($line)
+  #($line)
+  local line="$@"
+  [[ -n "${line}" ]]       || return 1
+  [[ ${line:0:1} == '#' ]] || return 0
+
+  # trim:
+  if [[ "$test" =~ ^[[:space:]]*([^[:space:]].*[^[:space:]])[[:space:]]*$ ]]
+  then
+      test=${BASH_REMATCH[1]}
+  fi
+  
 #     if (!$line) return false;
 #     if ($line[0] == '#') return true;
 #     if (trim($line, " \r\n\t") == '---') return true;
