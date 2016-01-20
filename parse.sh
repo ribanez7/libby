@@ -443,6 +443,7 @@ __load() {
 } # __load
 
 setx='__loadString'
+#==============================
 __loadString() {
   local input=$1
 #     $Source = $this->loadFromString($input);
@@ -450,6 +451,7 @@ __loadString() {
 } # __loadString
 
 setx='__loadWithSource'
+#==============================
 __loadWithSource() {
 #($Source)
 #     if (empty ($Source)) return array();
@@ -511,6 +513,7 @@ __loadWithSource() {
 } # __loadWithSource
 
 setx='__loadFromSource'
+#==============================
 __loadFromSource() {
   local input=$1
 #     if (!empty($input) && strpos($input, "\n") === false && file_exists($input))
@@ -520,6 +523,7 @@ __loadFromSource() {
 } # __loadFromSource
 
 setx='__loadFromString'
+#==============================
 __loadFromString() {
   local input=$1
 #     $lines = explode("\n",$input);
@@ -800,6 +804,7 @@ __inlineEscape() {
 } # __inlineEscape
 
 setx='__literalBlockContinues'
+#==============================
 __literalBlockContinues() {
 #($line, $lineIndent)
 #     if (!trim($line)) return true;
@@ -808,37 +813,9 @@ __literalBlockContinues() {
 } # __literalBlockContinues
 
 setx='__referenceContentsByAlias'
-setx='__addArrayInline'
-setx='__addArray'
-setx='__startsLiteralBlock'
-setx='__greedilyNeedNextLine'
-setx='__addLiteralLine'
-setx='__revertLiteralPlaceHolder'
-setx='__stripIndent'
-setx='__getParentPathByIndent'
-setx='__clearBiggerPathValues'
-setx='__isComment'
-setx='__isEmpty'
-setx='__isArrayElement'
-setx='__isHashElement'
-setx='__isLiteral'
-setx='__unquote'
-setx='__startsMappedSequence'
-setx='__returnMappedSequence'
-setx='__checkKeysInValue'
-setx='__returnMappedValue'
-setx='__startsMappedValue'
-setx='__isPlainArray'
-setx='__returnPlainArray'
-setx='__returnKeyValuePair'
-setx='__returnArrayElement'
-setx='__nodeContainsGroup'
-setx='__addGroup'
-setx='__stripGroup'
-
-
-################################################################################################
-#   private function referenceContentsByAlias ($alias) {
+#==============================
+__referenceContentsByAlias() {
+#($alias)
 #     do {
 #       if (!isset($this->SavedGroups[$alias])) { echo "Bad group name: $alias."; break; }
 #       $groupPath = $this->SavedGroups[$alias];
@@ -848,9 +825,12 @@ setx='__stripGroup'
 #       }
 #     } while (false);
 #     return $value;
-#   }
+} # __referenceContentsByAlias
 
-#   private function addArrayInline ($array, $indent) {
+setx='__addArrayInline'
+#==============================
+__addArrayInline(){
+#($array, $indent)
 #       $CommonGroupPath = $this->path;
 #       if (empty ($array)) return false;
 
@@ -859,10 +839,12 @@ setx='__stripGroup'
 #         $this->path = $CommonGroupPath;
 #       }
 #       return true;
-#   }
+} # __addArrayInline
 
-#   private function addArray ($incoming_data, $incoming_indent) {
-
+setx='__addArray'
+#==============================
+__addArray() {
+#($incoming_data, $incoming_indent)
 #    // print_r ($incoming_data);
 
 #     if (count ($incoming_data) > 1)
@@ -933,28 +915,36 @@ setx='__stripGroup'
 #       }
 #       $this->_containsGroupAnchor = false;
 #     }
+} # __addArray
 
-#   }
-
-#   private static function startsLiteralBlock ($line) {
+setx='__startsLiteralBlock'
+#==============================
+__startsLiteralBlock() {
+#($line)
 #     $lastChar = substr (trim($line), -1);
 #     if ($lastChar != '>' && $lastChar != '|') return false;
 #     if ($lastChar == '|') return $lastChar;
 #     // HTML tags should not be counted as literal blocks.
 #     if (preg_match ('#<.*?>$#', $line)) return false;
 #     return $lastChar;
-#   }
+} # __startsLiteralBlock
 
-#   private static function greedilyNeedNextLine($line) {
+setx='__greedilyNeedNextLine'
+#==============================
+__greedilyNeedNextLine() {
+#($line)
 #     $line = trim ($line);
 #     if (!strlen($line)) return false;
 #     if (substr ($line, -1, 1) == ']') return false;
 #     if ($line[0] == '[') return true;
 #     if (preg_match ('#^[^:]+?:\s*\[#', $line)) return true;
 #     return false;
-#   }
+} # __greedilyNeedNextLine
 
-#   private function addLiteralLine ($literalBlock, $line, $literalBlockStyle, $indent = -1) {
+setx='__addLiteralLine'
+#==============================
+__addLiteralLine() {
+#($literalBlock, $line, $literalBlockStyle, $indent = -1)
 #     $line = self::stripIndent($line, $indent);
 #     if ($literalBlockStyle !== '|') {
 #         $line = self::stripIndent($line);
@@ -971,9 +961,12 @@ setx='__stripGroup'
 #     if ($line != "\n")
 #       $line = trim ($line, "\r\n ") . " ";
 #     return $literalBlock . $line;
-#   }
+} # __addLiteralLine
 
-#    function revertLiteralPlaceHolder ($lineArray, $literalBlock) {
+setx='revertLiteralPlaceHolder'
+#==============================
+revertLiteralPlaceHolder() {
+#($lineArray, $literalBlock)
 #      foreach ($lineArray as $k => $_) {
 #       if (is_array($_))
 #         $lineArray[$k] = $this->revertLiteralPlaceHolder ($_, $literalBlock);
@@ -981,14 +974,20 @@ setx='__stripGroup'
 # 	       $lineArray[$k] = rtrim ($literalBlock, " \r\n");
 #      }
 #      return $lineArray;
-#    }
+} # revertLiteralPlaceHolder
 
-#   private static function stripIndent ($line, $indent = -1) {
+setx='__stripIndent'
+#==============================
+__stripIndent() {
+#($line, $indent = -1)
 #     if ($indent == -1) $indent = strlen($line) - strlen(ltrim($line));
 #     return substr ($line, $indent);
-#   }
+} # __stripIndent
 
-#   private function getParentPathByIndent ($indent) {
+setx='__getParentPathByIndent'
+#==============================
+__getParentPathByIndent() {
+#($indent)
 #     if ($indent == 0) return array();
 #     $linePath = $this->path;
 #     do {
@@ -996,12 +995,12 @@ setx='__stripGroup'
 #       if ($indent <= $lastIndentInParentPath) array_pop ($linePath);
 #     } while ($indent <= $lastIndentInParentPath);
 #     return $linePath;
-#   }
+} # __getParentPathByIndent
 
-
-#   private function clearBiggerPathValues ($indent) {
-
-
+setx='__clearBiggerPathValues'
+#==============================
+__clearBiggerPathValues() {
+#($indent)
 #     if ($indent == 0) $this->path = array();
 #     if (empty ($this->path)) return true;
 
@@ -1010,90 +1009,129 @@ setx='__stripGroup'
 #     }
 
 #     return true;
-#   }
+} # __clearBiggerPathValues
 
-
-#   private static function isComment ($line) {
+setx='__isComment'
+#==============================
+__isComment() {
+#($line)
 #     if (!$line) return false;
 #     if ($line[0] == '#') return true;
 #     if (trim($line, " \r\n\t") == '---') return true;
 #     return false;
-#   }
+} # __isComment
 
-#   private static function isEmpty ($line) {
+setx='__isEmpty'
+#==============================
+__isEmpty() {
+#($line)
 #     return (trim ($line) === '');
-#   }
+} # __isEmpty
 
-
-#   private function isArrayElement ($line) {
+setx='__isArrayElement'
+#==============================
+__isArrayElement() {
+#($line)
 #     if (!$line || !is_scalar($line)) return false;
 #     if (substr($line, 0, 2) != '- ') return false;
 #     if (strlen ($line) > 3)
 #       if (substr($line,0,3) == '---') return false;
 
 #     return true;
-#   }
+} # __isArrayElement
 
-#   private function isHashElement ($line) {
+setx='__isHashElement'
+#==============================
+__isHashElement() {
+#($line)
 #     return strpos($line, ':');
-#   }
+} # __isHashElement
 
-#   private function isLiteral ($line) {
+setx='__isLiteral'
+#==============================
+__isLiteral() {
+#($line)
 #     if ($this->isArrayElement($line)) return false;
 #     if ($this->isHashElement($line)) return false;
 #     return true;
-#   }
+} # __isLiteral
 
-
-#   private static function unquote ($value) {
+setx='__unquote'
+#==============================
+__unquote() {
+#($value)
 #     if (!$value) return $value;
 #     if (!is_string($value)) return $value;
 #     if ($value[0] == '\'') return trim ($value, '\'');
 #     if ($value[0] == '"') return trim ($value, '"');
 #     return $value;
-#   }
+} # __unquote
 
-#   private function startsMappedSequence ($line) {
+setx='__startsMappedSequence'
+#==============================
+__startsMappedSequence() {
+#($line)
 #     return (substr($line, 0, 2) == '- ' && substr ($line, -1, 1) == ':');
-#   }
+} # __startsMappedSequence
 
-#   private function returnMappedSequence ($line) {
+setx='__returnMappedSequence'
+#==============================
+__returnMappedSequence() {
+#($line)
 #     $array = array();
 #     $key         = self::unquote(trim(substr($line,1,-1)));
 #     $array[$key] = array();
 #     $this->delayedPath = array(strpos ($line, $key) + $this->indent => $key);
 #     return array($array);
-#   }
+} # __returnMappedSequence
 
-#   private function checkKeysInValue($value) {
+setx='__checkKeysInValue'
+#==============================
+__checkKeysInValue() {
+#($value)
 #     if (strchr('[{"\'', $value[0]) === false) {
 #       if (strchr($value, ': ') !== false) {
 #           throw new Exception('Too many keys: '.$value);
 #       }
 #     }
-#   }
+} # __checkKeysInValue
 
-#   private function returnMappedValue ($line) {
+setx='__returnMappedValue'
+#==============================
+__returnMappedValue() {
+#($line)
 #     $this->checkKeysInValue($line);
 #     $array = array();
 #     $key         = self::unquote (trim(substr($line,0,-1)));
 #     $array[$key] = '';
 #     return $array;
-#   }
+} # __returnMappedValue
 
-#   private function startsMappedValue ($line) {
+setx='__startsMappedValue'
+#==============================
+__startsMappedValue() {
+#($line)
 #     return (substr ($line, -1, 1) == ':');
-#   }
+} # __startsMappedValue
 
-#   private function isPlainArray ($line) {
+setx='__isPlainArray'
+#==============================
+__isPlainArray() {
+#($line)
 #     return ($line[0] == '[' && substr ($line, -1, 1) == ']');
-#   }
+} # __isPlainArray
 
-#   private function returnPlainArray ($line) {
+setx='__returnPlainArray'
+#==============================
+__returnPlainArray() {
+#($line)
 #     return $this->_toType($line);
-#   }
+} # __returnPlainArray
 
-#   private function returnKeyValuePair ($line) {
+setx='__returnKeyValuePair'
+#==============================
+__returnKeyValuePair() {
+#($line)
 #     $array = array();
 #     $key = '';
 #     if (strpos ($line, ': ')) {
@@ -1117,11 +1155,12 @@ setx='__stripGroup'
 #       $array = array ($line);
 #     }
 #     return $array;
+} # __returnKeyValuePair
 
-#   }
-
-
-#   private function returnArrayElement ($line) {
+setx='__returnArrayElement'
+#==============================
+__returnArrayElement() {
+#($line)
 #      if (strlen($line) <= 1) return array(array()); // Weird %)
 #      $array = array();
 #      $value   = trim(substr($line,1));
@@ -1131,10 +1170,12 @@ setx='__stripGroup'
 #      }
 #      $array[] = $value;
 #      return $array;
-#   }
+} # __returnArrayElement
 
-
-#   private function nodeContainsGroup ($line) {
+setx='__nodeContainsGroup'
+#==============================
+__nodeContainsGroup() {
+#($line)
 #     $symbolsForReference = 'A-z0-9_\-';
 #     if (strpos($line, '&') === false && strpos($line, '*') === false) return false; // Please die fast ;-)
 #     if ($line[0] == '&' && preg_match('/^(&['.$symbolsForReference.']+)/', $line, $matches)) return $matches[1];
@@ -1144,23 +1185,30 @@ setx='__stripGroup'
 #     if (preg_match ('#^\s*<<\s*:\s*(\*[^\s]+).*$#', $line, $matches)) return $matches[1];
 #     return false;
 
-#   }
+} # __nodeContainsGroup
 
-#   private function addGroup ($line, $group) {
+setx='__addGroup'
+#==============================
+__addGroup() {
+#($line, $group)
 #     if ($group[0] == '&') $this->_containsGroupAnchor = substr ($group, 1);
 #     if ($group[0] == '*') $this->_containsGroupAlias = substr ($group, 1);
 #     //print_r ($this->path);
-#   }
+} # __addGroup
 
-#   private function stripGroup ($line, $group) {
+setx='__stripGroup'
+#==============================
+__stripGroup() {
+#($line, $group)
 #     $line = trim(str_replace($group, '', $line));
 #     return $line;
-#   }
-# }
+} # __stripGroup
 
+## FIN DE LA CLASE.
+
+###################################################################################
 # // Enable use of Spyc from command line
 # // The syntax is the following: php Spyc.php spyc.yaml
-
 # do {
 #   if (PHP_SAPI != 'cli') break;
 #   if (empty ($_SERVER['argc']) || $_SERVER['argc'] < 2) break;
@@ -1168,38 +1216,7 @@ setx='__stripGroup'
 #   $file = $argv[1];
 #   echo json_encode (spyc_load_file ($file));
 # } while (0);
-
-################################################################################################
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+###################################################################################
 
 setx=usage
 #==============================
