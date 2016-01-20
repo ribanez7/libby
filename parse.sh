@@ -109,11 +109,11 @@ setx=YAMLDump
 #==============================
 YAMLDump() {
   local array
-  local -i indent=${INDENT}} \
+  local -i indent=${INDENT} \
            wordwrap=${WORDWRAP} \
            no_opening_dashes=1 # use 0 to avoid this header.
 
-  while getopts f:i:w:n opt ; do
+  while getopts :f:i:w:n opt ; do
     case "$opt" in
       f) array="$OPTARG";;
       i) is_integer? "$OPTARG" && indent="$OPTARG"   || : ;;
@@ -147,7 +147,7 @@ dump() {
            wordwrap=${WORDWRAP} \
            no_opening_dashes=1 # use 0 to avoid this header.
 
-  while getopts f:i:w:n opt ; do
+  while getopts :f:i:w:n opt ; do
     case "$opt" in
       f) array="$OPTARG";;
       i) is_integer? "$OPTARG" && indent="$OPTARG"   || : ;;
@@ -333,107 +333,125 @@ __doLiteralBlock() {
 
 setx='__doFolding'
 #==============================
-# Creates a literal block for dumping
+# Folds a string of text, if necessary
 # @access private
 # @return string
-# @param $value
-# @param $indent int The value of the indent
+# @param $value The string you wish to fold
 #==============================
-__doFolding ($value,$indent)
-{
+__doFolding() {
+#($value,$indent)
+  # // Don't do anything if wordwrap is set to 0
+  # if ($this->_dumpWordWrap !== 0 && is_string ($value) && strlen($value) > $this->_dumpWordWrap) {
+  #   $indent += $this->_dumpIndent;
+  #   $indent = str_repeat(' ',$indent);
+  #   $wrapped = wordwrap($value,$this->_dumpWordWrap,"\n$indent");
+  #   $value   = ">\n".$indent.$wrapped;
+  # } else {
+  #   if ($this->setting_dump_force_quotes && is_string ($value) && $value !== self::REMPTY)
+  #     $value = '"' . $value . '"';
+  #   if (is_numeric($value) && is_string($value))
+  #     $value = '"' . $value . '"';
+  # }
+  # return $value;
+} # __doFolding
 
-
-################################################################################################
-#      * Folds a string of text, if necessary
-#      * @access private
-#      * @return string
-#      * @param $value The string you wish to fold
-#   private function _doFolding($value,$indent) {
-#     // Don't do anything if wordwrap is set to 0
-
-#     if ($this->_dumpWordWrap !== 0 && is_string ($value) && strlen($value) > $this->_dumpWordWrap) {
-#       $indent += $this->_dumpIndent;
-#       $indent = str_repeat(' ',$indent);
-#       $wrapped = wordwrap($value,$this->_dumpWordWrap,"\n$indent");
-#       $value   = ">\n".$indent.$wrapped;
-#     } else {
-#       if ($this->setting_dump_force_quotes && is_string ($value) && $value !== self::REMPTY)
-#         $value = '"' . $value . '"';
-#       if (is_numeric($value) && is_string($value))
-#         $value = '"' . $value . '"';
-#     }
-
-
-#     return $value;
-#   }
-
-#   private function isTrueWord($value) {
+setx='isTrueWord'
+#==============================
+# Detect any word with true value as meaning
+#==============================
+__isTrueWord() {
+  local value=$1
 #     $words = self::getTranslations(array('true', 'on', 'yes', 'y'));
 #     return in_array($value, $words, true);
-#   }
+} # __isTrueWord
 
-#   private function isFalseWord($value) {
+setx='isFalseWord'
+#==============================
+# Detect any word with false value as meaning
+#==============================
+__isFalseWord() {
+  local value=$1
 #     $words = self::getTranslations(array('false', 'off', 'no', 'n'));
 #     return in_array($value, $words, true);
-#   }
+} # __isFalseWord
 
-#   private function isNullWord($value) {
+setx='isNullWord'
+#==============================
+# Detect any word with null value as meaning
+#==============================
+__isNullWord() {
+  local value=$1
 #     $words = self::getTranslations(array('null', '~'));
 #     return in_array($value, $words, true);
-#   }
+} # __isNullWord
 
-#   private function isTranslationWord($value) {
+setx='isTranslationWord'
+#==============================
+# Detect any word with translation value as meaning
+#==============================
+__isTranslationWord() {
+  local value=$1
 #     return (
 #       self::isTrueWord($value)  ||
 #       self::isFalseWord($value) ||
 #       self::isNullWord($value)
 #     );
-#   }
+} # __isTranslationWord
 
-#   /**
-#      * Coerce a string into a native type
-#      * Reference: http://yaml.org/type/bool.html
-#      * TODO: Use only words from the YAML spec.
-#      * @access private
-#      * @param $value The value to coerce
-#      */
-#   private function coerceValue(&$value) {
+setx='__coerceValue'
+#==============================
+# Coerce a string into a native type
+# Reference: http://yaml.org/type/bool.html
+# TODO: Use only words from the YAML spec.
+# @access private
+# @param $value The value to coerce
+#==============================
+__coerceValue() {
+#(&$value)
 #     if (self::isTrueWord($value)) {
 #       $value = true;
 #     } else if (self::isFalseWord($value)) {
 #       $value = false;
 #     } else if (self::isNullWord($value)) {
 #       $value = null;
-#     }
-#   }
+#     }  
+} # __coerceValue
 
-#   /**
-#      * Given a set of words, perform the appropriate translations on them to
-#      * match the YAML 1.1 specification for type coercing.
-#      * @param $words The words to translate
-#      * @access private
-#      */
-#   private static function getTranslations(array $words) {
+setx='getTranslations'
+#==============================
+# Given a set of words, perform the appropriate translations on them to
+# match the YAML 1.1 specification for type coercing.
+# @param $words The words to translate
+# @access private static
+#==============================
+__getTranslations() {
+#(array $words)
 #     $result = array();
 #     foreach ($words as $i) {
 #       $result = array_merge($result, array(ucfirst($i), strtoupper($i), strtolower($i)));
 #     }
 #     return $result;
-#   }
+} # __getTranslations
 
-# // LOADING FUNCTIONS
-
-#   private function __load($input) {
+# LOADING METHODS:
+# ================
+setx='__load'
+__load() {
+  local input=$1
 #     $Source = $this->loadFromSource($input);
 #     return $this->loadWithSource($Source);
-#   }
+} # __load
 
-#   private function __loadString($input) {
+setx='__loadString'
+__loadString() {
+  local input=$1
 #     $Source = $this->loadFromString($input);
 #     return $this->loadWithSource($Source);
-#   }
+} # __loadString
 
-#   private function loadWithSource($Source) {
+setx='__loadWithSource'
+__loadWithSource() {
+#($Source)
 #     if (empty ($Source)) return array();
 #     if ($this->setting_use_syck_is_possible && function_exists ('syck_load')) {
 #       $array = syck_load (implode ("\n", $Source));
@@ -490,30 +508,36 @@ __doFolding ($value,$indent)
 
 #     }
 #     return $this->result;
-#   }
+} # __loadWithSource
 
-#   private function loadFromSource ($input) {
+setx='__loadFromSource'
+__loadFromSource() {
+  local input=$1
 #     if (!empty($input) && strpos($input, "\n") === false && file_exists($input))
 #       $input = file_get_contents($input);
 
 #     return $this->loadFromString($input);
-#   }
+} # __loadFromSource
 
-#   private function loadFromString ($input) {
+setx='__loadFromString'
+__loadFromString() {
+  local input=$1
 #     $lines = explode("\n",$input);
 #     foreach ($lines as $k => $_) {
 #       $lines[$k] = rtrim ($_, "\r");
 #     }
 #     return $lines;
-#   }
+} # __loadFromString
 
-#   /**
-#      * Parses YAML code and returns an array for a node
-#      * @access private
-#      * @return array
-#      * @param string $line A line from the YAML file
-#      */
-#   private function _parseLine($line) {
+setx='__parseLine'
+#==============================
+# Parses YAML code and returns an array for a node
+# @access private
+# @return array
+# @param string $line A line from the YAML file
+#==============================
+__parseLine() {
+  local line=$1
 #     if (!$line) return array();
 #     $line = trim($line);
 #     if (!$line) return array();
@@ -540,16 +564,17 @@ __doFolding ($value,$indent)
 
 
 #     return $this->returnKeyValuePair($line);
+} # __parseLine
 
-#   }
-
-#   /**
-#      * Finds the type of the passed value, returns the value as the new type.
-#      * @access private
-#      * @param string $value
-#      * @return mixed
-#      */
-#   private function _toType($value) {
+setx='__toType'
+#==============================
+# Finds the type of the passed value, returns the value as the new type.
+# @access private
+# @param string $value
+# @return mixed
+#==============================
+__toType() {
+  local value=$1
 #     if ($value === '') return "";
 #     $first_character = $value[0];
 #     $last_character = substr($value, -1, 1);
@@ -637,14 +662,16 @@ __doFolding ($value,$indent)
 #     }
 
 #     return $value;
-#   }
+} # __toType
 
-#   /**
-#      * Used in inlines to check for more inlines or quoted strings
-#      * @access private
-#      * @return array
-#      */
-#   private function _inlineEscape($inline) {
+setx='__inlineEscape'
+#==============================
+# Used in inlines to check for more inlines or quoted strings
+# @access private
+# @return array
+#==============================
+__inlineEscape() {
+  local inline=$1 #($inline)
 #     // There's gotta be a cleaner way to do this...
 #     // While pure sequences seem to be nesting just fine,
 #     // pure mappings and mappings with sequences inside can't go very
@@ -770,14 +797,47 @@ __doFolding ($value,$indent)
 
 
 #     return $explode;
-#   }
+} # __inlineEscape
 
-#   private function literalBlockContinues ($line, $lineIndent) {
+setx='__literalBlockContinues'
+__literalBlockContinues() {
+#($line, $lineIndent)
 #     if (!trim($line)) return true;
 #     if (strlen($line) - strlen(ltrim($line)) > $lineIndent) return true;
 #     return false;
-#   }
+} # __literalBlockContinues
 
+setx='__referenceContentsByAlias'
+setx='__addArrayInline'
+setx='__addArray'
+setx='__startsLiteralBlock'
+setx='__greedilyNeedNextLine'
+setx='__addLiteralLine'
+setx='__revertLiteralPlaceHolder'
+setx='__stripIndent'
+setx='__getParentPathByIndent'
+setx='__clearBiggerPathValues'
+setx='__isComment'
+setx='__isEmpty'
+setx='__isArrayElement'
+setx='__isHashElement'
+setx='__isLiteral'
+setx='__unquote'
+setx='__startsMappedSequence'
+setx='__returnMappedSequence'
+setx='__checkKeysInValue'
+setx='__returnMappedValue'
+setx='__startsMappedValue'
+setx='__isPlainArray'
+setx='__returnPlainArray'
+setx='__returnKeyValuePair'
+setx='__returnArrayElement'
+setx='__nodeContainsGroup'
+setx='__addGroup'
+setx='__stripGroup'
+
+
+################################################################################################
 #   private function referenceContentsByAlias ($alias) {
 #     do {
 #       if (!isset($this->SavedGroups[$alias])) { echo "Bad group name: $alias."; break; }
