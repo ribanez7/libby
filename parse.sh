@@ -1013,40 +1013,37 @@ __clearBiggerPathValues() {
 setx='__isComment'
 #==============================
 __isComment() {
-  #($line)
   local line="$@"
-  [[ -n "${line}" ]]       || return 1
-  [[ ${line:0:1} == '#' ]] || return 0
 
-  # trim:
-  if [[ "$test" =~ ^[[:space:]]*([^[:space:]].*[^[:space:]])[[:space:]]*$ ]]
-  then
-      test=${BASH_REMATCH[1]}
-  fi
-  
-#     if (!$line) return false;
-#     if ($line[0] == '#') return true;
-#     if (trim($line, " \r\n\t") == '---') return true;
-#     return false;
+  [[ -n "${line}" ]]                || return 1
+  [[ ${line:0:1} != '#' ]]          || return 0
+  [[ $(trim -s "$line") != '---' ]] || return 0
+
+  return 1
 } # __isComment
 
 setx='__isEmpty'
 #==============================
 __isEmpty() {
-#($line)
-#     return (trim ($line) === '');
+  local line="$@"
+  [[ -z $(trim -s "$line") ]]
 } # __isEmpty
 
 setx='__isArrayElement'
 #==============================
 __isArrayElement() {
-#($line)
-#     if (!$line || !is_scalar($line)) return false;
-#     if (substr($line, 0, 2) != '- ') return false;
-#     if (strlen ($line) > 3)
-#       if (substr($line,0,3) == '---') return false;
-
-#     return true;
+  local line="$@"
+  if [[ -z "${line}" ]] || ! is_scalar? "${line}"; then
+    return 1
+  elif [[ "${line:0:2}" != '- ' ]]; then
+    return 1
+  elif [ "${#line}" -gt 3 ]; then
+    if [[ "${line:0:3}" == '---' ]]; then
+      return 1
+    fi
+  else
+    return 0
+  fi
 } # __isArrayElement
 
 setx='__isHashElement'
