@@ -1015,9 +1015,9 @@ setx='__isComment'
 __isComment() {
   local line="$@"
 
-  [[ -n "${line}" ]]                || return 1
-  [[ ${line:0:1} != '#' ]]          || return 0
-  [[ $(trim -s "$line") != '---' ]] || return 0
+  [[ -n "${line}" ]]                 || return 1
+  [[ ${line:0:1} != '#' ]]           || return 0
+  [[ $(strip -s "$line") != '---' ]] || return 0
 
   return 1
 } # __isComment
@@ -1026,7 +1026,7 @@ setx='__isEmpty'
 #==============================
 __isEmpty() {
   local line="$@"
-  [[ -z $(trim -s "$line") ]]
+  [[ -z $(strip -s "$line") ]]
 } # __isEmpty
 
 setx='__isArrayElement'
@@ -1049,8 +1049,9 @@ __isArrayElement() {
 setx='__isHashElement'
 #==============================
 __isHashElement() {
-#($line)
-#     return strpos($line, ':');
+  # retrurns the strpos vie the index method
+  local line="$@"
+  index -s "${line}" -c ':'
 } # __isHashElement
 
 setx='__isLiteral'
