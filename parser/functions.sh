@@ -1,4 +1,108 @@
 
+# @array
+# bla_@array
+# [array]
+# [bla_@array]
+
+# #===============================================================================    
+# # Build packages                                                                    
+# #===============================================================================    
+# PACKAGES[@build]="autoconf automake bison flex gdb make patch"                      
+# RECOMMENDS[@build]="ccache texinfo"                                                 
+# #-------------------------------------------------------------------------------    
+# PACKAGES[Debian_@build]="build-essential libc6-dev libncurses5-dev libtool manpages"
+# #------------------------------------------------------------------------------- 
+# PACKAGES[Ubuntu_@build]="[Debian_@build]"                                        
+# PACKAGES[Ubuntu-12.04_@build]="g++-multilib"                                     
+# #------------------------------------------------------------------------------- 
+# PACKAGES[LinuxMint_@build]="[Ubuntu_@build]"                                     
+# PACKAGES[LinuxMint-16_@build]="[Ubuntu-12.04_@build]"                            
+# #------------------------------------------------------------------------------- 
+# PACKAGES[RHEL_@build]="gcc gcc-c++ glibc-devel"                                  
+# #------------------------------------------------------------------------------- 
+# PACKAGES[LFD211]="@build @common @trace gparted sysstat tcpdump wireshark"
+# RECOMMENDS[LFD211]="iptraf-ng gnome-system-monitor ksysguard yelp"        
+# PACKAGES[Debian_LFD211]="stress"                                          
+# RECOMMENDS[Debian_LFD211]="default-jdk"                                   
+# PACKAGES[Ubuntu_LFD211]="[Debian_LFD211]"                                 
+# RECOMMENDS[Ubuntu_LFD211]="[Debian_LFD211]"                               
+# PACKAGES[LinuxMint_LFD211]="[Debian_LFD211]"                              
+# RECOMMENDS[RHEL_LFD211]="kdebase"                                         
+# RECOMMENDS[RHEL-6_LFD211]="-iptraf-ng iptraf"                             
+# PACKAGES[CentOS_LFD211]="[RHEL_LFD211]"                                   
+# RECOMMENDS[CentOS-6_LFD211]="[RHEL-6_LFD211] -ksysguard ksysguardd"       
+# PACKAGES[Fedora_LFD211]="[RHEL_LFD211] stress"                            
+# RECOMMENDS[openSUSE_LFD211]="kdebase4-workspace -ksysguard"               
+
+# Recursively expand macros in package list                                  
+pkg_list_recurse() {                                                         
+    local DB=$1; shift                                                       
+    local DID=$1; shift                                                      
+    local DREL=$1; shift                                                     
+    local KEY                                                                
+    debug "recurse $DB $DID-$DREL: $*"                                       
+    for KEY in $* ; do                                                       
+        case $KEY in                                                         
+            @*) local PKGS=$(get_db $DB $KEY $DID $DREL)                     
+                pkg_list_recurse $DB $DID $DREL $PKGS ;;                     
+            [*) local PKGS=$(eval "echo \${$DB$KEY}") #]                     
+                debug "lookup macro $DB$KEY -> $PKGS"                        
+                [[ $KEY != $PKGS ]] || error "Recursive package list: $KEY"  
+                pkg_list_recurse $DB $DID $DREL $PKGS ;;                     
+            *) echo $KEY ;;                                                  
+        esac                                                                 
+    done                                                                     
+}                                                                            
+# Check package list for obvious problems                                          
+pkg_list_check() {                                                                 
+    for PKG in ${!PACKAGES[@]} ${!RECOMMENDS[@]}; do                               
+        case "$PKG" in                                                             
+            @*|*_@*) >/dev/null;;                                                  
+            *@*) fail "'$PKG' is likely invalid. I think you meant '${PKG/@/_@}'";;
+            *) >/dev/null;;                                                        
+        esac                                                                       
+    done                                                                           
+}                                                                                  
+# Do a lookup in DB for NAME, DIST_NAME, DIST-RELEASE_NAME
+get_db() {                                                   
+    local DB=$1                                              
+    local NAME=$2                                            
+    local DIST=$3                                            
+    local RELEASE=$4                                         
+                                                             
+    debug "get_db $DB NAME=$NAME DIST=$DIST RELEASE=$RELEASE"
+    lookup $DB $NAME                                         
+    lookup_fallback $DB "$NAME" "$DIST" ""                   
+    lookup_fallback $DB "$NAME" "$DIST" "$RELEASE"           
+}                                                            
+# Do a lookup in DB of KEY                 
+lookup() {                                 
+    local DB=$1                            
+    local KEY=$2                           
+    [[ -n $KEY ]] || return                
+    local DATA=$(eval "echo \${$DB[$KEY]}")
+    if [[ -n $DATA ]] ; then               
+        debug "lookup $DB[$KEY] -> $DATA"  
+        echo $DATA                         
+        return 0                           
+    fi                                     
+    return 1                               
+}                                          
+# Do a lookup in DB for DIST[-RELEASE] and if unfound consult FALLBACK distros
+lookup_fallback() {                                                           
+    local DB=$1                                                               
+    local NAME=$2                                                             
+    local DIST=$3                                                             
+    local RELEASE=$4                                                          
+    #debug "fallback DB=$DB NAME=$NAME DIST=$DIST RELEASE=$RELEASE"           
+    DIST+=${RELEASE:+-$RELEASE}                                               
+    local KEY                                                                 
+    for KEY in $DIST ${FALLBACK[${DIST:-no_distro}]} ; do                     
+        KEY+=${NAME:+_$NAME}                                                  
+        lookup $DB $KEY && return                                             
+    done                                                                      
+}                                                                             
+
 
 # (defun yaml-font-lock-block-literals (bound)
 #   "Find lines within block literals.
