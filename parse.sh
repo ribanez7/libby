@@ -24,11 +24,11 @@ trap "echo ':: Exitting...'" INT TERM EXIT
 
 # CONSTANTS:
 # ==========
-readonly PROGNAME=$(sed 's/\.sh$//' <<<"${0##*/}")
-readonly SCRIPTNAME=$(basename $0)
-readonly SCRIPTDIR=$(readlink -m $(dirname $0))
-readonly TMPDIR=/tmp/${PROGNAME}.$$
-readonly ARGS="$@"
+readonly PROGNAME=$(sed 's/\.sh$//' <<<"${0##*/}") \
+         SCRIPTNAME=$(basename $0) \
+         SCRIPTDIR=$(readlink -m $(dirname $0)) \
+         TMPDIR=/tmp/${PROGNAME}.$$ \
+         ARGS="$@"
 
 # GLOBALS:
 # ========
@@ -37,9 +37,11 @@ typeset -i setting_dump_force_quotes=0 \
            setting_use_syck_is_possible=0 \
            _containsGroupAnchor=0 \
            _containsGroupAlias=0
+
 ## Typed:
 typeset -i _dumpIndent _dumpWordWrap INDENT=2 WORDWRAP=40
 typeset -A SavedGroups delayedPath
+
 ## Untyped:
 path=''
 result=''
@@ -49,7 +51,7 @@ _nodeId=''
 # REQUIREMENTS:
 # =============
 . $SCRIPTDIR/functions/utils.sh
-. $SCRIPTDIR/parser/{constants,functions}.sh
+. $SCRIPTDIR/parser/{constants,methods}.sh
 
 # METHOD DEFINITIONS:
 # ===================
