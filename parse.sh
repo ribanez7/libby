@@ -808,6 +808,9 @@ setx='__literalBlockContinues'
 #==============================
 __literalBlockContinues() {
 #($line, $lineIndent)
+  local line
+  local -i lineIndent  
+
 #     if (!trim($line)) return true;
 #     if (strlen($line) - strlen(ltrim($line)) > $lineIndent) return true;
 #     return false;
@@ -921,19 +924,32 @@ __addArray() {
 setx='__startsLiteralBlock'
 #==============================
 __startsLiteralBlock() {
-#($line)
-#     $lastChar = substr (trim($line), -1);
-#     if ($lastChar != '>' && $lastChar != '|') return false;
-#     if ($lastChar == '|') return $lastChar;
-#     // HTML tags should not be counted as literal blocks.
-#     if (preg_match ('#<.*?>$#', $line)) return false;
-#     return $lastChar;
+
+  local line="$@" lastChar='' html_pattern='<.*?>$'
+
+  strip_line=$(strip -s "${line}")
+  lastChar="${strip_line: -1}"
+
+  if [[ ${lastChar} != '>' ]] && [[ ${lastChar} != '|' ]]; then
+    return 1
+  elif [[ ${lastChar} == '|' ]]; then
+    printf '%s' ${lastChar}
+    return 0
+  elif [[ "${line}" =~ ${html_pattern} ]]; then
+    return 1
+  else
+    printf '%s' ${lastChar}
+  fi
 } # __startsLiteralBlock
 
 setx='__greedilyNeedNextLine'
 #==============================
 __greedilyNeedNextLine() {
 #($line)
+  local line=$(strip -s "$@")
+
+  [[ -n "${line}" ]] || return 1
+  
 #     $line = trim ($line);
 #     if (!strlen($line)) return false;
 #     if (substr ($line, -1, 1) == ']') return false;
