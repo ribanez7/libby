@@ -199,51 +199,8 @@ alias strpos='index'
 # MISCELANEA:
 #==============================================================================
 
-# > I've found name pipes (fifos) but I am confused on using them
-# > properly. What I want to do is to take the stdout of a process and
-# > send it to another process to be filtered. I also want to take the
-# > stderr of the first process and send it to another process to
-# > also be filtered. Any examples?
-# [...]
-# No need for named pipes here.
-# >> {
-# >>   {
-# >>     cm1 3>&- |
-# >>       cmd2 2>&3 3>&-
-# >>   } 2>&1 >&4 4>&- |
-# >>     cmd3 3>&- 4>&-
-# >> } 3>&2 4>&1
-# >
-# > Thanks.
-# >
-# > OK now I see why I didn't get it to work. I didn't try that far.
-# > But I have to say I'm not quite sure what I'm reading just yet.
-# > I'll have to hit the man pages as I'm not used to the >&-
-# > syntax.
-# 3>&- is for closing fd 3. It's not necessary, but it's for tidy
-# up. None of the commands will ever try (not should they) to
-# access the fd 3 and 4, so it's best to close them before
-# executing those commands so that they can use those fds for
-# something else.
-
 # {
 #   {
-#     cm1 |
-#       cmd2 2>&3
-#   } 2>&1 >&4 |
-#     cmd3
+#     cm1 3>&- | cmd2 2>&3 3>&-
+#   } 2>&1 >&4 4>&- | cmd3 3>&- 4>&-
 # } 3>&2 4>&1
-
-# is functionnaly equivalent.
-
-# if cmd2 doesn't output anything on its stdout nor stderr, it can
-# even be simplified to:
-# { cm1 | cmd2; } 2>&1 | cmd3
-
-# Or if you want to be sure:
-
-# { cm1 | cmd2 > /dev/null 2>&1; } 2>&1 | cmd3
-
-# -- 
-# Stéphane
-

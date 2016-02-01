@@ -1051,7 +1051,7 @@ __isArrayElement() {
 setx='__isHashElement'
 #==============================
 __isHashElement() {
-  # retrurns the strpos vie the index method
+  # retrurns the strpos via the index method
   local line="$@"
   index -s "${line}" -c ':'
 } # __isHashElement
