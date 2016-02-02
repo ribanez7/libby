@@ -924,7 +924,6 @@ __addArray() {
 setx='__startsLiteralBlock'
 #==============================
 __startsLiteralBlock() {
-
   local line="$@" lastChar='' html_pattern='<.*?>$'
 
   strip_line=$(strip -s "${line}")
@@ -947,15 +946,13 @@ setx='__greedilyNeedNextLine'
 __greedilyNeedNextLine() {
 #($line)
   local line=$(strip -s "$@")
+  local regex='^[^:]+:[[:space:]]*\['
 
-  [[ -n "${line}" ]] || return 1
-  
-#     $line = trim ($line);
-#     if (!strlen($line)) return false;
-#     if (substr ($line, -1, 1) == ']') return false;
-#     if ($line[0] == '[') return true;
-#     if (preg_match ('#^[^:]+?:\s*\[#', $line)) return true;
-#     return false;
+  [[ -n "${line}" ]]            || return 1
+  [[ "${line: -1:1}" != ']' ]]  || return 1
+  [[ "${line:0:1}" != '[' ]]    || return 0
+  [[ ! "${line}" =~ ${regex} ]] || return 0
+  return 1
 } # __greedilyNeedNextLine
 
 setx='__addLiteralLine'
@@ -995,10 +992,31 @@ revertLiteralPlaceHolder() {
 
 setx='__stripIndent'
 #==============================
+# -l <string> : input line
+# -i <int>    : by default -1 (indent value)
+# prints a string.
+#==============================
 __stripIndent() {
 #($line, $indent = -1)
-#     if ($indent == -1) $indent = strlen($line) - strlen(ltrim($line));
-#     return substr ($line, $indent);
+  local line lstripped
+  local -i indent=-1 OPTIND=1 lenLine lenStrip
+
+  while getopts :l:i: opt ; do
+    case "$opt" in
+      l) line="$OPTARG" ;;
+      i) is_integer? "$OPTARG" && indent="$OPTARG" || : ;;
+    esac
+  done
+  shift $(($OPTIND - 1))
+
+  if [ ${indent} -eq -1 ]; then
+    lenLine="${#line}"
+    lstripped=$(lstrip -s "${line}")
+    lenStrip="${#lstripped}"
+    indent=$(( lenLine - lenStrip ))
+  fi
+
+  printf '%s' "${line:${indent}}"
 } # __stripIndent
 
 setx='__getParentPathByIndent'

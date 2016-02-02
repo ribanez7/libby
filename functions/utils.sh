@@ -26,6 +26,8 @@
 # VERBS:
 # ======
 # strip (alias: trim)
+# lstrip (alias: ltrim)
+# rstrip (alias: rtrim)
 # index (alias: strpos)
 
 # MISCELANEA:
@@ -158,6 +160,60 @@ strip() {
   fi
 } # strip
 alias trim='strip'
+
+setx='lstrip'
+#==============================
+# strip just from the left
+# -s <string>  : string to process
+# -c <string>  : alternative chars to strip
+#==============================
+lstrip() {
+  local str chars="${IFS}[:space:]"
+  local -i OPTIND=1
+
+  while getopts :s:c: opt ; do
+    case "$opt" in
+      s)   str="$OPTARG" ;;
+      c) chars="$OPTARG" ;;
+    esac
+  done
+  shift $(($OPTIND - 1))
+
+  if [[ "${str}" =~ ^[[:space:]]*([^[:space:]].*[^[:space:]][[:space:]]*$) ]]
+  then 
+    printf '%s' "${BASH_REMATCH[1]}"
+  else
+    printf '%s' "${str}"
+  fi
+} # strip
+alias ltrim='lstrip'
+
+setx='rstrip'
+#==============================
+# strip just from the right
+# -s <string>  : string to process
+# -c <string>  : alternative chars to strip
+#==============================
+rstrip() {
+  local str chars="${IFS}[:space:]"
+  local -i OPTIND=1
+
+  while getopts :s:c: opt ; do
+    case "$opt" in
+      s)   str="$OPTARG" ;;
+      c) chars="$OPTARG" ;;
+    esac
+  done
+  shift $(($OPTIND - 1))
+
+  if [[ "${str}" =~ (^[[:space:]]*[^[:space:]].*[^[:space:]])[[:space:]]*$ ]]
+  then 
+    printf '%s' "${BASH_REMATCH[1]}"
+  else
+    printf '%s' "${str}"
+  fi
+} # strip
+alias rtrim='rstrip'
 
 setx='index'
 #==============================
