@@ -23,12 +23,16 @@
 # is_array?
 # is_hash?
 
-# VERBS:
-# ======
+# STRINGS:
+# ========
 # strip (alias: trim)
 # lstrip (alias: ltrim)
 # rstrip (alias: rtrim)
 # index (alias: strpos)
+
+# ARRAYS:
+# =======
+# pop
 
 # MISCELANEA:
 # ===========
@@ -249,6 +253,41 @@ index() {
   printf '%d' $((${#str}+${offset}))
 } # index
 alias strpos='index'
+
+#==============================================================================
+# ARRAYS:
+#==============================================================================
+setx='pop'
+#==============================
+# Removes last element in an array and fills the var with that value.
+# -a <array>   : input array
+# -v <varname> : var to fill with popped value (default 'var')
+# returns false if array is empty
+#==============================
+pop() {
+  local array arrayname varname='var'
+  local -i OPTIND=1 n
+
+  while getopts :a:v: opt ; do
+    case "$opt" in
+      a) arrayname="${OPTARG:?ArgumentError}" ;;
+      v) varname="${OPTARG:-var}" ;;
+    esac
+  done
+  shift $(($OPTIND - 1))
+
+  # Copy the array, $arrayname, to local array
+  eval "array=( \"\${$arrayname[@]}\" )"
+  n=${#array[@]}
+  (( n )) || return 1
+
+  # Store last element in $varname
+  printf -v "$varname" "${array[n-1]}"
+  unset array[n-1]
+
+  # Copy array back to $arrayname
+  eval "$arrayname=( \"\${array[@]}\" )"
+} # pop
 
 
 #==============================================================================
