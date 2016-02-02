@@ -1023,6 +1023,13 @@ setx='__getParentPathByIndent'
 #==============================
 __getParentPathByIndent() {
 #($indent)
+  local indent=$1
+
+  if [ ${indent} -eq 0 ]; then
+    declare -a array
+    return 0
+  fi
+
 #     if ($indent == 0) return array();
 #     $linePath = $this->path;
 #     do {
@@ -1103,6 +1110,12 @@ setx='__unquote'
 #==============================
 __unquote() {
 #($value)
+  local value="$@"
+  if ! [[ -n "${value}" ]]; then
+    printf '%s' "${value}"
+    return 0
+  elif ! is_integer? 
+    
 #     if (!$value) return $value;
 #     if (!is_string($value)) return $value;
 #     if ($value[0] == '\'') return trim ($value, '\'');
