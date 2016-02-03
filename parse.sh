@@ -361,9 +361,23 @@ setx='isTrueWord'
 # Detect any word with true value as meaning
 #==============================
 __isTrueWord() {
-  local value=$1
-#     $words = self::getTranslations(array('true', 'on', 'yes', 'y'));
-#     return in_array($value, $words, true);
+  local value=$1 pattern
+  local -a words=()
+
+  words=( $(__getTranslations true on yes y) )
+
+  # Check if value is in words
+  pattern=$(printf '%s|' "${words[@]}")
+  pattern="+(${pattern%|})"
+
+  shopt -s extglob
+    case ${value} in
+      ${pattern}) rc=0 ;;
+      *)          rc=1 ;;
+    esac
+  shopt -u extglob
+
+  return $rc
 } # __isTrueWord
 
 setx='isFalseWord'
@@ -371,9 +385,23 @@ setx='isFalseWord'
 # Detect any word with false value as meaning
 #==============================
 __isFalseWord() {
-  local value=$1
-#     $words = self::getTranslations(array('false', 'off', 'no', 'n'));
-#     return in_array($value, $words, true);
+  local value=$1 pattern
+  local -a words=()
+
+  words=( $(__getTranslations false off no n) )
+
+  # Check if value is in words
+  pattern=$(printf '%s|' "${words[@]}")
+  pattern="+(${pattern%|})"
+
+  shopt -s extglob
+    case ${value} in
+      ${pattern}) rc=0 ;;
+      *)          rc=1 ;;
+    esac
+  shopt -u extglob
+
+  return $rc
 } # __isFalseWord
 
 setx='isNullWord'
@@ -381,9 +409,23 @@ setx='isNullWord'
 # Detect any word with null value as meaning
 #==============================
 __isNullWord() {
-  local value=$1
-#     $words = self::getTranslations(array('null', '~'));
-#     return in_array($value, $words, true);
+  local value=$1 pattern
+  local -a words=()
+
+  words=( $(__getTranslations null '~') )
+
+  # Check if value is in words
+  pattern=$(printf '%s|' "${words[@]}")
+  pattern="+(${pattern%|})"
+
+  shopt -s extglob
+    case ${value} in
+      ${pattern}) rc=0 ;;
+      *)          rc=1 ;;
+    esac
+  shopt -u extglob
+
+  return $rc
 } # __isNullWord
 
 setx='isTranslationWord'
@@ -392,11 +434,10 @@ setx='isTranslationWord'
 #==============================
 __isTranslationWord() {
   local value=$1
-#     return (
-#       self::isTrueWord($value)  ||
-#       self::isFalseWord($value) ||
-#       self::isNullWord($value)
-#     );
+
+  __isTrueWord ${value}  || \
+  __isFalseWord ${value} || \
+  __isNullWord ${value}
 } # __isTranslationWord
 
 setx='__coerceValue'
@@ -422,16 +463,22 @@ setx='getTranslations'
 #==============================
 # Given a set of words, perform the appropriate translations on them to
 # match the YAML 1.1 specification for type coercing.
-# @param $words The words to translate
-# @access private static
+# $@  : The words to translate
+# return a list of words space separated
 #==============================
 __getTranslations() {
-#(array $words)
-#     $result = array();
-#     foreach ($words as $i) {
-#       $result = array_merge($result, array(ucfirst($i), strtoupper($i), strtolower($i)));
-#     }
-#     return $result;
+  local words="$@" i
+  local -a result=()
+
+  for i in ${words}; do
+    result+=(
+      ${i^}
+      ${i^^}
+      ${i,,}
+    )
+  done
+
+  echo -n ${result[@]}
 } # __getTranslations
 
 # LOADING METHODS:
@@ -1179,7 +1226,7 @@ setx='__isPlainArray'
 #==============================
 __isPlainArray() {
   local line="$@"
-#     return ($line[0] == '[' && substr ($line, -1, 1) == ']');
+  [[ "${line:0:1}" == '[' ]] && [[ "${line: -1:1}" == ']' ]]
 } # __isPlainArray
 
 setx='__returnPlainArray'
