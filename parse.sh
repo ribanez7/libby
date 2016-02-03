@@ -449,7 +449,8 @@ setx='__coerceValue'
 # @param $value The value to coerce
 #==============================
 __coerceValue() {
-#(&$value)
+  local value=$1
+
 #     if (self::isTrueWord($value)) {
 #       $value = true;
 #     } else if (self::isFalseWord($value)) {
@@ -562,23 +563,35 @@ __loadWithSource() {
 
 setx='__loadFromSource'
 #==============================
+# OJO
 __loadFromSource() {
-  local input=$1
-#     if (!empty($input) && strpos($input, "\n") === false && file_exists($input))
-#       $input = file_get_contents($input);
+  local input="$@"
 
-#     return $this->loadFromString($input);
+  if [[ -n "${input}" ]]          && \
+    ! index -s "${index}" -c '\n' && \
+    [ -f "${input}" ]
+  then
+    input=$(<"${input}")
+  else
+    # return $this->loadFromString($input);
+    __loadFromString "${input}"
+  fi
 } # __loadFromSource
 
 setx='__loadFromString'
 #==============================
 __loadFromString() {
-  local input=$1
-#     $lines = explode("\n",$input);
-#     foreach ($lines as $k => $_) {
-#       $lines[$k] = rtrim ($_, "\r");
-#     }
-#     return $lines;
+  local input="$1" k v
+  local -a lines
+
+  mapfile -t lines <<<"${input}"
+
+  for k in "${!lines[@]}"; do
+    v="${lines[$k]}"
+    lines[$k]=$(rstrip -s "${v}" -c '\r')
+  done
+
+  printf '%s\n' "${rarr[@]}"
 } # __loadFromString
 
 setx='__parseLine'
@@ -704,6 +717,7 @@ __toType() {
 #       return hexdec($value);
 #     }
 
+#NOTAS: value=$(coerceValue $value)
 #     $this->coerceValue($value);
 
 #     if (is_numeric($value)) {
