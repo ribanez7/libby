@@ -1025,11 +1025,6 @@ __getParentPathByIndent() {
 #($indent)
   local indent=$1
 
-  if [ ${indent} -eq 0 ]; then
-    declare -a array
-    return 0
-  fi
-
 #     if ($indent == 0) return array();
 #     $linePath = $this->path;
 #     do {
@@ -1101,23 +1096,29 @@ setx='__isLiteral'
 #==============================
 __isLiteral() {
 #($line)
-#     if ($this->isArrayElement($line)) return false;
-#     if ($this->isHashElement($line)) return false;
-#     return true;
+  local line="$@"
+
+  if __isArrayElement "${line}"; then
+    return 1
+  elif __isHashElement "${line}"; then
+    return 1
+  else
+    return 0
+  fi
 } # __isLiteral
 
 setx='__unquote'
 #==============================
 __unquote() {
 #($value)
-  local value="$@"
-  if ! [[ -n "${value}" ]]; then
-    printf '%s' "${value}"
-    return 0
+  # local value="$@"
+  # if ! [[ -n "${value}" ]]; then
+  #   printf '%s' "${value}"
+  #   return 0
   # elif is_integer? "$value" || is_array? "$value" || is_hash? "$value"; then
   #   printf '%s' "${value[@]}"
   #   return 0
-  elif 
+  # elif 
     
 #     if (!$value) return $value;
 #     if (!is_string($value)) return $value;
@@ -1129,14 +1130,15 @@ __unquote() {
 setx='__startsMappedSequence'
 #==============================
 __startsMappedSequence() {
-#($line)
+  local line="$@"
+  [[ "${line:0:2}" == '- ' ]] && [[ "${line: -1:1}" == ':' ]]
 #     return (substr($line, 0, 2) == '- ' && substr ($line, -1, 1) == ':');
 } # __startsMappedSequence
 
 setx='__returnMappedSequence'
 #==============================
 __returnMappedSequence() {
-#($line)
+  local line="$@"
 #     $array = array();
 #     $key         = self::unquote(trim(substr($line,1,-1)));
 #     $array[$key] = array();
@@ -1158,7 +1160,7 @@ __checkKeysInValue() {
 setx='__returnMappedValue'
 #==============================
 __returnMappedValue() {
-#($line)
+  local line="$@"
 #     $this->checkKeysInValue($line);
 #     $array = array();
 #     $key         = self::unquote (trim(substr($line,0,-1)));
@@ -1169,28 +1171,28 @@ __returnMappedValue() {
 setx='__startsMappedValue'
 #==============================
 __startsMappedValue() {
-#($line)
-#     return (substr ($line, -1, 1) == ':');
+  local line="$@"
+  [[ "${line: -1:1}" == ':' ]]
 } # __startsMappedValue
 
 setx='__isPlainArray'
 #==============================
 __isPlainArray() {
-#($line)
+  local line="$@"
 #     return ($line[0] == '[' && substr ($line, -1, 1) == ']');
 } # __isPlainArray
 
 setx='__returnPlainArray'
 #==============================
 __returnPlainArray() {
-#($line)
+  local line="$@"
 #     return $this->_toType($line);
 } # __returnPlainArray
 
 setx='__returnKeyValuePair'
 #==============================
 __returnKeyValuePair() {
-#($line)
+  local line="$@"
 #     $array = array();
 #     $key = '';
 #     if (strpos ($line, ': ')) {
@@ -1219,7 +1221,7 @@ __returnKeyValuePair() {
 setx='__returnArrayElement'
 #==============================
 __returnArrayElement() {
-#($line)
+  local line="$@"
 #      if (strlen($line) <= 1) return array(array()); // Weird %)
 #      $array = array();
 #      $value   = trim(substr($line,1));
@@ -1234,7 +1236,7 @@ __returnArrayElement() {
 setx='__nodeContainsGroup'
 #==============================
 __nodeContainsGroup() {
-#($line)
+  local line="$@"
 #     $symbolsForReference = 'A-z0-9_\-';
 #     if (strpos($line, '&') === false && strpos($line, '*') === false) return false; // Please die fast ;-)
 #     if ($line[0] == '&' && preg_match('/^(&['.$symbolsForReference.']+)/', $line, $matches)) return $matches[1];

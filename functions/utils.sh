@@ -103,33 +103,33 @@ error() {
 #==============================================================================
 
 is_valid_string?() {
-  [[ $@ =~ ^[A-Za-z0-9]*$ ]]
+  [[ "${@:?}" =~ ^[A-Za-z0-9_[:space:]]*$ ]]
 }
 
 is_integer?() {
-  [ $@ -eq $@ ] > /dev/null 2>&1
+  [ ${@:?} -eq ${@:?} ] > /dev/null 2>&1
 }
 
 is_function?() {
-  local s=$1
+  local s=${1:?}
   [[ $(type -t $s) == 'function' ]]
 }
 
 is_alias?() {
-  local s=$1
+  local s=${1:?}
   [[ $(type -t $s) == 'alias' ]]
 }
 
 is_scalar?() {
-  declare -p "$1" 2> /dev/null | grep -qE '^declare \-[^aA]* '
+  declare -p "${1:?}" 2> /dev/null | grep -qE '^declare \-[^aA]* '
 }
 
 is_array?() {
-  declare -p "$1" 2> /dev/null | grep -qE '^declare \-[^ ]*a[^ ]*'
+  declare -p "${1:?}" 2> /dev/null | grep -qE '^declare \-[^ ]*a[^ ]*'
 }
 
 is_hash?() {
-  declare -p "$1" 2> /dev/null | grep -qE '^declare \-[^ ]*A[^ ]*'
+  declare -p "${1:?}" 2> /dev/null | grep -qE '^declare \-[^ ]*A[^ ]*'
 }
 
 #==============================================================================
