@@ -1114,7 +1114,10 @@ __unquote() {
   if ! [[ -n "${value}" ]]; then
     printf '%s' "${value}"
     return 0
-  elif ! is_integer? 
+  # elif is_integer? "$value" || is_array? "$value" || is_hash? "$value"; then
+  #   printf '%s' "${value[@]}"
+  #   return 0
+  elif 
     
 #     if (!$value) return $value;
 #     if (!is_string($value)) return $value;

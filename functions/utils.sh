@@ -107,7 +107,7 @@ is_valid_string?() {
 }
 
 is_integer?() {
-  [ $@ -eq $@ ] > /dev/null
+  [ $@ -eq $@ ] > /dev/null 2>&1
 }
 
 is_function?() {
