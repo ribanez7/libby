@@ -117,8 +117,8 @@ YAMLDump() {
   while getopts :f:i:w:n opt ; do
     case "$opt" in
       f) array="$OPTARG";;
-      i) is_integer? "$OPTARG" && indent="$OPTARG"   || : ;;
-      w) is_integer? "$OPTARG" && wordwrap="$OPTARG" || : ;;
+      i) is_integer "$OPTARG" && indent="$OPTARG"   || : ;;
+      w) is_integer "$OPTARG" && wordwrap="$OPTARG" || : ;;
       n) no_opening_dashes=0 ;;
     esac
   done
@@ -151,8 +151,8 @@ dump() {
   while getopts :f:i:w:n opt ; do
     case "$opt" in
       f) array="$OPTARG";;
-      i) is_integer? "$OPTARG" && indent="$OPTARG"   || : ;;
-      w) is_integer? "$OPTARG" && wordwrap="$OPTARG" || : ;;
+      i) is_integer "$OPTARG" && indent="$OPTARG"   || : ;;
+      w) is_integer "$OPTARG" && wordwrap="$OPTARG" || : ;;
       n) no_opening_dashes=0 ;;
     esac
   done
@@ -197,9 +197,9 @@ __yamelize() {
     case "$opt" in
       k) key="$OPTARG";;
       v) value="$OPTARG";;
-      i) is_integer? "$OPTARG" && indent="$OPTARG"       || : ;;
-      p) is_integer? "$OPTARG" && previous_key="$OPTARG" || : ;;
-      f) is_integer? "$OPTARG" && first_key="$OPTARG"    || : ;;
+      i) is_integer "$OPTARG" && indent="$OPTARG"       || : ;;
+      p) is_integer "$OPTARG" && previous_key="$OPTARG" || : ;;
+      f) is_integer "$OPTARG" && first_key="$OPTARG"    || : ;;
       s) source_array="$OPTARG";;
     esac
   done
@@ -445,19 +445,20 @@ setx='__coerceValue'
 # Coerce a string into a native type
 # Reference: http://yaml.org/type/bool.html
 # TODO: Use only words from the YAML spec.
-# @access private
+# USAGE: variable=$(__coerceValue $variable)
 # @param $value The value to coerce
 #==============================
 __coerceValue() {
   local value=$1
 
-#     if (self::isTrueWord($value)) {
-#       $value = true;
-#     } else if (self::isFalseWord($value)) {
-#       $value = false;
-#     } else if (self::isNullWord($value)) {
-#       $value = null;
-#     }  
+  if __isTrueWord "${value}"; then
+    value=true
+  elif __isFalseWord "${value}"; then
+    value=false
+  elif __isNullWord "${value}"; then
+    value=null
+  fi
+  printf '%s' "${value}"
 } # __coerceValue
 
 setx='getTranslations'
@@ -580,6 +581,8 @@ __loadFromSource() {
 
 setx='__loadFromString'
 #==============================
+# Explodes the string on the '\n', creates the array lines.
+#==============================
 __loadFromString() {
   local input="$1" k v
   local -a lines
@@ -591,7 +594,7 @@ __loadFromString() {
     lines[$k]=$(rstrip -s "${v}" -c '\r')
   done
 
-  printf '%s\n' "${rarr[@]}"
+  printf '%s\n' "${lines[@]}"
 } # __loadFromString
 
 setx='__parseLine'
@@ -602,13 +605,18 @@ setx='__parseLine'
 # @param string $line A line from the YAML file
 #==============================
 __parseLine() {
-  local line=$1
+  local line="$@"
+
+  [[ -n $line ]] || return 0
 #     if (!$line) return array();
+  line=$(strip -s "${line}")
+  [[ -n $line ]] || return 0
 #     $line = trim($line);
 #     if (!$line) return array();
 
+  local -a array=()
 #     $array = array();
-
+  local group=$(__nodeContainsGroup "${line}")
 #     $group = $this->nodeContainsGroup($line);
 #     if ($group) {
 #       $this->addGroup($line, $group);
@@ -869,18 +877,34 @@ setx='__literalBlockContinues'
 #==============================
 __literalBlockContinues() {
 #($line, $lineIndent)
-  local line
-  local -i lineIndent  
+  local -i lineIndent=$1 ; shift
+  local line="$@"
+  local -i lenLine="${#line}"
+  local stripped="$(lstrip -s "${line}")"
+  local -i lenStrip=${#stripped}
 
-#     if (!trim($line)) return true;
-#     if (strlen($line) - strlen(ltrim($line)) > $lineIndent) return true;
-#     return false;
+  if ! strip -s "${line}"; then
+    return 0
+  elif [ $(( lenLine - lenStrip )) -gt ${lineIndent} ]; then
+    return 0
+  else
+    return 1
+  fi
 } # __literalBlockContinues
 
 setx='__referenceContentsByAlias'
 #==============================
 __referenceContentsByAlias() {
-#($alias)
+  #($alias)
+  local alias=$1
+
+  while : ; do
+      echo
+    if ! : ; then
+      break
+    fi
+  done
+  
 #     do {
 #       if (!isset($this->SavedGroups[$alias])) { echo "Bad group name: $alias."; break; }
 #       $groupPath = $this->SavedGroups[$alias];
@@ -985,7 +1009,10 @@ __addArray() {
 setx='__startsLiteralBlock'
 #==============================
 __startsLiteralBlock() {
-  local line="$@" lastChar='' html_pattern='<.*?>$'
+  local line="$@" \
+        strip_line='' \
+        lastChar='' \
+        html_pattern='<.*?>$'
 
   strip_line=$(strip -s "${line}")
   lastChar="${strip_line: -1}"
@@ -1065,7 +1092,7 @@ __stripIndent() {
   while getopts :l:i: opt ; do
     case "$opt" in
       l) line="$OPTARG" ;;
-      i) is_integer? "$OPTARG" && indent="$OPTARG" || : ;;
+      i) is_integer "$OPTARG" && indent="$OPTARG" || : ;;
     esac
   done
   shift $(($OPTIND - 1))
@@ -1125,14 +1152,14 @@ setx='__isEmpty'
 #==============================
 __isEmpty() {
   local line="$@"
-  [[ -z $(strip -s "$line") ]]
+  strip -s "$line" >/dev/null 2>&1 || :
 } # __isEmpty
 
 setx='__isArrayElement'
 #==============================
 __isArrayElement() {
   local line="$@"
-  if [[ -z "${line}" ]] || ! is_scalar? "${line}"; then
+  if [[ -z "${line}" ]] || ! is_scalar "${line}"; then
     return 1
   elif [[ "${line:0:2}" != '- ' ]]; then
     return 1
@@ -1147,8 +1174,9 @@ __isArrayElement() {
 
 setx='__isHashElement'
 #==============================
+# retrurns the strpos via the index method
+#==============================
 __isHashElement() {
-  # retrurns the strpos via the index method
   local line="$@"
   index -s "${line}" -c ':'
 } # __isHashElement
@@ -1156,7 +1184,6 @@ __isHashElement() {
 setx='__isLiteral'
 #==============================
 __isLiteral() {
-#($line)
   local line="$@"
 
   if __isArrayElement "${line}"; then
@@ -1170,30 +1197,41 @@ __isLiteral() {
 
 setx='__unquote'
 #==============================
+# for the moment, it exits if it's not a string.
+# returns the value passed, but unquotted.
+# OJO
+#==============================
 __unquote() {
-#($value)
-  # local value="$@"
-  # if ! [[ -n "${value}" ]]; then
+  local value="$@"
+
+  if ! [[ -n "${value}" ]]; then
   #   printf '%s' "${value}"
   #   return 0
-  # elif is_integer? "$value" || is_array? "$value" || is_hash? "$value"; then
+    return 1
+  elif is_integer "$value" || is_array "$value" || is_hash "$value"; then
   #   printf '%s' "${value[@]}"
   #   return 0
-  # elif 
-    
-#     if (!$value) return $value;
-#     if (!is_string($value)) return $value;
-#     if ($value[0] == '\'') return trim ($value, '\'');
-#     if ($value[0] == '"') return trim ($value, '"');
-#     return $value;
+    return 1
+  elif [[ "${value:0:1}" == "'" ]]; then
+    strip -s "${value}" -c "'"
+    return 0
+  elif [[ "${value:0:1}" == '"' ]]; then
+    strip -s "${value}" -c '"'
+    return 0
+  else
+  #   printf '%s' "${value[@]}"
+  #   return 0
+    return 1
+  fi
 } # __unquote
 
 setx='__startsMappedSequence'
 #==============================
+# Check whether a line starts a mapped sequence
+#==============================
 __startsMappedSequence() {
   local line="$@"
   [[ "${line:0:2}" == '- ' ]] && [[ "${line: -1:1}" == ':' ]]
-#     return (substr($line, 0, 2) == '- ' && substr ($line, -1, 1) == ':');
 } # __startsMappedSequence
 
 setx='__returnMappedSequence'
@@ -1298,15 +1336,32 @@ setx='__nodeContainsGroup'
 #==============================
 __nodeContainsGroup() {
   local line="$@"
-#     $symbolsForReference = 'A-z0-9_\-';
-#     if (strpos($line, '&') === false && strpos($line, '*') === false) return false; // Please die fast ;-)
-#     if ($line[0] == '&' && preg_match('/^(&['.$symbolsForReference.']+)/', $line, $matches)) return $matches[1];
-#     if ($line[0] == '*' && preg_match('/^(\*['.$symbolsForReference.']+)/', $line, $matches)) return $matches[1];
-#     if (preg_match('/(&['.$symbolsForReference.']+)$/', $line, $matches)) return $matches[1];
-#     if (preg_match('/(\*['.$symbolsForReference.']+$)/', $line, $matches)) return $matches[1];
-#     if (preg_match ('#^\s*<<\s*:\s*(\*[^\s]+).*$#', $line, $matches)) return $matches[1];
-#     return false;
+  local Regex1='^(&[A-z0-9_\-]+)'
+  local Regex2='^(\*[A-z0-9_\-]+)'
+  local Regex3='(&[A-z0-9_\-]+)$'
+  local Regex4='(\*[A-z0-9_\-]+$)'
+  local Regex5='^[[:space:]]*<<[[:space:]]*:[[:space:]]*(\*[^[:space:]]+).*$'
 
+  if ! index -s "${line}" -c '&' && ! index -s "${line}" -c '*'; then
+    return 1
+  elif [[ "${line:0:1}" == '&' ]] && [[ "${line}" =~ $Regex1 ]]; then
+    printf '%s' "${BASH_REMATCH[1]}"
+    return 0
+  elif [[ "${line:0:1}" == '*' ]] && [[ "${line}" =~ $Regex2 ]]; then
+    printf '%s' "${BASH_REMATCH[1]}"
+    return 0
+  elif [[ "${line}" =~ $Regex3 ]]; then
+    printf '%s' "${BASH_REMATCH[1]}"
+    return 0
+  elif [[ "${line}" =~ $Regex4 ]]; then
+    printf '%s' "${BASH_REMATCH[1]}"
+    return 0
+  elif [[ "${line}" =~ $Regex5 ]]; then
+    printf '%s' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+
+  return 1
 } # __nodeContainsGroup
 
 setx='__addGroup'
@@ -1327,18 +1382,6 @@ __stripGroup() {
 } # __stripGroup
 
 ## FIN DE LA CLASE.
-
-###################################################################################
-# // Enable use of Spyc from command line
-# // The syntax is the following: php Spyc.php spyc.yaml
-# do {
-#   if (PHP_SAPI != 'cli') break;
-#   if (empty ($_SERVER['argc']) || $_SERVER['argc'] < 2) break;
-#   if (empty ($_SERVER['PHP_SELF']) || FALSE === strpos ($_SERVER['PHP_SELF'], 'Spyc.php') ) break;
-#   $file = $argv[1];
-#   echo json_encode (spyc_load_file ($file));
-# } while (0);
-###################################################################################
 
 setx=usage
 #==============================

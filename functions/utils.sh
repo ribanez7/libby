@@ -15,16 +15,17 @@
 
 # BOOLEANS:
 # =========
-# is_valid_string?
-# is_integer?
-# is_function?
-# is_alias?
-# is_scalar?
-# is_array?
-# is_hash?
+# is_valid_string
+# is_integer
+# is_function
+# is_alias
+# is_scalar
+# is_array
+# is_hash
 
 # STRINGS:
 # ========
+# print_if_non_blank
 # strip (alias: trim)
 # lstrip (alias: ltrim)
 # rstrip (alias: rtrim)
@@ -102,39 +103,49 @@ error() {
 # BOOLEANS:
 #==============================================================================
 
-is_valid_string?() {
+is_valid_string() {
   [[ "${@:?}" =~ ^[A-Za-z0-9_[:space:]]*$ ]]
 }
 
-is_integer?() {
+is_integer() {
   [ ${@:?} -eq ${@:?} ] > /dev/null 2>&1
 }
 
-is_function?() {
+is_function() {
   local s=${1:?}
   [[ $(type -t $s) == 'function' ]]
 }
 
-is_alias?() {
+is_alias() {
   local s=${1:?}
   [[ $(type -t $s) == 'alias' ]]
 }
 
-is_scalar?() {
+is_scalar() {
   declare -p "${1:?}" 2> /dev/null | grep -qE '^declare \-[^aA]* '
 }
 
-is_array?() {
+is_array() {
   declare -p "${1:?}" 2> /dev/null | grep -qE '^declare \-[^ ]*a[^ ]*'
 }
 
-is_hash?() {
+is_hash() {
   declare -p "${1:?}" 2> /dev/null | grep -qE '^declare \-[^ ]*A[^ ]*'
 }
 
 #==============================================================================
 # VERBS:
 #==============================================================================
+
+setx='printf_if_non_blank'
+#==============================
+# This method returns 1 if the value passed is empty
+# or contains just spaces.
+#==============================
+printf_if_non_blank() {
+  local s="$@"
+  [[ "${s}" =~ ^[[:space:]]*$ ]] || printf '%s' "${s}"
+} # printf_in_non_blank
 
 setx='strip'
 #==============================
@@ -145,7 +156,7 @@ setx='strip'
 # -c <string>  : alternative chars to strip
 #==============================
 strip() {
-  local str chars="${IFS}[:space:]"
+  local str chars="[:space:]"
   local -i OPTIND=1
 
   while getopts :s:c: opt ; do
@@ -156,11 +167,11 @@ strip() {
   done
   shift $(($OPTIND - 1))
 
-  if [[ "${str}" =~ ^[[:space:]]*([^[:space:]].*[^[:space:]])[[:space:]]*$ ]]
+  if [[ "${str}" =~ ^[${chars}]*([^${chars}].*[^${chars}])[${chars}]*$ ]]
   then 
-    printf '%s' "${BASH_REMATCH[1]}"
+    printf_if_non_blank "${BASH_REMATCH[1]}"
   else
-    printf '%s' "${str}"
+    printf_if_non_blank "${str}"
   fi
 } # strip
 alias trim='strip'
@@ -172,7 +183,7 @@ setx='lstrip'
 # -c <string>  : alternative chars to strip
 #==============================
 lstrip() {
-  local str chars="${IFS}[:space:]"
+  local str chars="[:space:]"
   local -i OPTIND=1
 
   while getopts :s:c: opt ; do
@@ -183,11 +194,11 @@ lstrip() {
   done
   shift $(($OPTIND - 1))
 
-  if [[ "${str}" =~ ^[[:space:]]*([^[:space:]].*[^[:space:]][[:space:]]*$) ]]
-  then 
-    printf '%s' "${BASH_REMATCH[1]}"
+  if [[ "${str}" =~ ^[${chars}]*([^${chars}].*[^${chars}][${chars}]*$) ]]
+  then
+    printf_if_non_blank "${BASH_REMATCH[1]}"
   else
-    printf '%s' "${str}"
+    printf_if_non_blank "${str}"
   fi
 } # strip
 alias ltrim='lstrip'
@@ -199,7 +210,7 @@ setx='rstrip'
 # -c <string>  : alternative chars to strip
 #==============================
 rstrip() {
-  local str chars="${IFS}[:space:]"
+  local str chars="[:space:]"
   local -i OPTIND=1
 
   while getopts :s:c: opt ; do
@@ -210,11 +221,11 @@ rstrip() {
   done
   shift $(($OPTIND - 1))
 
-  if [[ "${str}" =~ (^[[:space:]]*[^[:space:]].*[^[:space:]])[[:space:]]*$ ]]
+  if [[ "${str}" =~ (^[${chars}]*[^${chars}].*[^${chars}])[${chars}]*$ ]]
   then 
-    printf '%s' "${BASH_REMATCH[1]}"
+    printf_if_non_blank "${BASH_REMATCH[1]}"
   else
-    printf '%s' "${str}"
+    printf_if_non_blank "${str}"
   fi
 } # strip
 alias rtrim='rstrip'
