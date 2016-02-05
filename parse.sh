@@ -1298,7 +1298,7 @@ __returnPlainArray() {
 setx='__returnKeyValuePair'
 #==============================
 __returnKeyValuePair() {
-  local line="$@" key
+  local line="$@" key value explode
   local -a array=()
   local pattern="^([\"'](.*)[\"']([[:space:]])*:)"
 
@@ -1308,17 +1308,15 @@ __returnKeyValuePair() {
     if ( [[ "${line:0:1}" == '"' ]] || [[ "${line:0:1}" == "'" ]] ) && \
       [[ "${line}" =~ ${pattern} ]]
     then
-      
-#       if (($line[0] == '"' || $line[0] == "'") && preg_match('/^(["\'](.*)["\'](\s)*:)/',$line,$matches)) {
-#         $value = trim(str_replace($matches[1],'',$line));
-#         $key   = $matches[2];
-#       } else {
-#         // Do some guesswork as to the key and the value
-#         $explode = explode(': ', $line);
-#         $key     = trim(array_shift($explode));
-#         $value   = trim(implode(': ', $explode));
+      value="$(strip -s "${line//${BASH_REMATCH[1]}}")"
+      key="${BASH_REMATCH[2]}"
+    else
+      key=$(strip -s "${line%%: *}")
+      value=$(strip -s "${line#*: }")
 #         $this->checkKeysInValue($value);
-#       }
+      __checkKeysInValue -v "${value}"
+    fi
+
 #       // Set the type of the value.  Int, string, etc
 #       $value = $this->_toType($value);
 #       if ($key === '0') $key = '__!YAMLZero';
