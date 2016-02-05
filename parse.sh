@@ -110,7 +110,8 @@ setx=YAMLDump
 #==============================
 YAMLDump() {
   local array
-  local -i indent=${INDENT} \
+  local -i OPTIND=1 \
+           indent=${INDENT} \
            wordwrap=${WORDWRAP} \
            no_opening_dashes=1 # use 0 to avoid this header.
 
@@ -144,7 +145,8 @@ setx=dump
 #==============================
 dump() {
   local array string=''
-  local -i indent=${INDENT}} \
+  local -i OPTIND=1 \
+           indent=${INDENT}} \
            wordwrap=${WORDWRAP} \
            no_opening_dashes=1 # use 0 to avoid this header.
 
@@ -189,7 +191,8 @@ setx='__yamelize'
 #==============================
 __yamelize() {
   local key value
-  local -i indent \
+  local -i OPTIND=1 \
+           indent \
            previous_key=-1 \
            first_key=0
 
@@ -606,7 +609,7 @@ setx='__parseLine'
 #==============================
 __parseLine() {
   local line="$@"
-
+# OJO : quizás debería devolver un error?
   [[ -n $line ]] || return 0
 #     if (!$line) return array();
   line=$(strip -s "${line}")
@@ -617,6 +620,10 @@ __parseLine() {
   local -a array=()
 #     $array = array();
   local group=$(__nodeContainsGroup "${line}")
+  if [[ -n "${group}"]]; then
+    __addGroup -l "${line}" -g "${group}"
+    line=$(__stripGroup -l "${line}" -g "${group}")
+  fi
 #     $group = $this->nodeContainsGroup($line);
 #     if ($group) {
 #       $this->addGroup($line, $group);
@@ -1291,12 +1298,17 @@ __returnPlainArray() {
 setx='__returnKeyValuePair'
 #==============================
 __returnKeyValuePair() {
-  local line="$@"
-#     $array = array();
-#     $key = '';
-#     if (strpos ($line, ': ')) {
-#       // It's a key/value pair most likely
-#       // If the key is in double quotes pull it out
+  local line="$@" key
+  local -a array=()
+  local pattern="^([\"'](.*)[\"']([[:space:]])*:)"
+
+  if [[ "${line}" =~ ': ' ]]; then
+    # It's a key/value pair most likely
+    # If the key is in double quotes pull it out
+    if ( [[ "${line:0:1}" == '"' ]] || [[ "${line:0:1}" == "'" ]] ) && \
+      [[ "${line}" =~ ${pattern} ]]
+    then
+      
 #       if (($line[0] == '"' || $line[0] == "'") && preg_match('/^(["\'](.*)["\'](\s)*:)/',$line,$matches)) {
 #         $value = trim(str_replace($matches[1],'',$line));
 #         $key   = $matches[2];
@@ -1313,7 +1325,7 @@ __returnKeyValuePair() {
 #       $array[$key] = $value;
 #     } else {
 #       $array = array ($line);
-#     }
+  fi
 #     return $array;
 } # __returnKeyValuePair
 
@@ -1367,18 +1379,51 @@ __nodeContainsGroup() {
 setx='__addGroup'
 #==============================
 __addGroup() {
-#($line, $group)
-#     if ($group[0] == '&') $this->_containsGroupAnchor = substr ($group, 1);
-#     if ($group[0] == '*') $this->_containsGroupAlias = substr ($group, 1);
-#     //print_r ($this->path);
+# OJO : VARIABLE CONTAINSGROUPANCHOR y CONTAINSGROUPALIAS
+# DEBERÍAN SER SIMPLEMENTE BOOLEANS 0 Ó 1
+  local line group 
+  local -i OPTIND=1
+
+  while getopts :g: opt ; do
+    case "$opt" in
+      g) group="$OPTARG" ;;
+      # l)  line="$OPTARG" ;;
+    esac
+  done
+  shift $(($OPTIND - 1))
+
+  line="${@}"
+
+  if [[ "${group:0:1}" == '&' ]]; then
+    # $this->_containsGroupAnchor = substr ($group, 1);
+    _containsGroupAnchor="${group:1}"
+  elif [[ "${group:0:1}" == '*' ]]; then
+    # $this->_containsGroupAlias = substr ($group, 1);
+    _containsGroupAlias="${group:1}"
+  fi
+
 } # __addGroup
 
 setx='__stripGroup'
 #==============================
 __stripGroup() {
-#($line, $group)
-#     $line = trim(str_replace($group, '', $line));
-#     return $line;
+# OJO : devuelve la línea correctamente?
+  local line group 
+  local -i OPTIND=1
+
+  while getopts :g: opt ; do
+    case "$opt" in
+      g) group="$OPTARG" ;;
+      # l)  line="$OPTARG" ;;
+    esac
+  done
+  shift $(($OPTIND - 1))
+
+  line="${@}"
+  line="${line//${group}}"
+  line="$(strip -s "${line}")"
+
+  printf '%s' "${line}"
 } # __stripGroup
 
 ## FIN DE LA CLASE.
