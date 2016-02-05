@@ -34,6 +34,7 @@
 # ARRAYS:
 # =======
 # pop
+# array_join
 
 # MISCELANEA:
 # ===========
@@ -300,6 +301,30 @@ pop() {
   eval "$arrayname=( \"\${array[@]}\" )"
 } # pop
 
+setx='array_join'
+#==============================
+# Prints the values of the array passed with the delimiter specified.
+# Delimiter can be multicharacter.
+# Remember to pass the array this way: "${array[@]}"
+# -d <delimiter/s>  : desired delimiter
+# -- <array values> : expanded array.
+#==============================
+array_join() {
+  local del
+  local -i OPTIND=1
+
+  while getopts :d: opt ; do
+    case "$opt" in
+      d) del="${OPTARG:?ArgumentError}" ;;
+    esac
+  done
+  shift $(($OPTIND - 1))
+
+  echo -n "$1"
+  shift
+
+  printf "%s" "${@/#/$del}"
+} # array_join
 
 #==============================================================================
 # MISCELANEA:
