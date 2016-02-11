@@ -73,7 +73,7 @@ setx=loadFile
 #==============================
 loadFile() {
   local file=$1
-  echo __load $file
+  __load $file
 } # loadFile
 
 setx=YAMLLoad
@@ -83,7 +83,7 @@ setx=YAMLLoad
 YAMLLoad() {
   export LIBBY='LIBBY_'
   local file=$1
-  echo __load $file
+  __load $file
 } # YAMLLoad
 
 setx=YAMLLoad
@@ -95,7 +95,7 @@ setx=YAMLLoad
 YAMLLoadString() {
   export LIBBY='LIBBY_'
   local input=$1
-  echo __loadString $input
+  __loadString $input
 } # YAMLLoadString
 
 setx=YAMLDump
@@ -207,6 +207,9 @@ __yamelize() {
     esac
   done
   shift $(($OPTIND - 1))
+
+
+
   #   if (is_array($value)) {
   #   if (empty ($value))
   #     return $this->_dumpNode($key, array(), $indent, $previous_key, $first_key, $source_array);
@@ -259,34 +262,77 @@ setx='__dumpNode'
 #==============================
 __dumpNode() {
 #($key, $value, $indent, $previous_key = -1, $first_key = 0, $source_array = null)
-  # // do some folding here, for blocks
-  # if (is_string ($value) && ((strpos($value,"\n") !== false || strpos($value,": ") !== false || strpos($value,"- ") !== false ||
-  #   strpos($value,"*") !== false || strpos($value,"#") !== false || strpos($value,"<") !== false || strpos($value,">") !== false || strpos ($value, '%') !== false || strpos ($value, '  ') !== false ||
-  #   strpos($value,"[") !== false || strpos($value,"]") !== false || strpos($value,"{") !== false || strpos($value,"}") !== false) || strpos($value,"&") !== false || strpos($value, "'") !== false || strpos($value, "!") === 0 ||
-  #   substr ($value, -1, 1) == ':')
-  # ) {
-  #   $value = $this->_doLiteralBlock($value,$indent);
-  # } else {
-  #   $value  = $this->_doFolding($value,$indent);
-  # }
+  local key value
+  local -i indent previous_key=-1 first_key=0 OPTIND=1
+  local -a source_array=()
+  local regex="(\n|: |- |\*|#|<|>|%|  |\[|]|\{|}|&|'|!)"
 
+  while getopts :k:v:i:p:f:s: opt ; do
+    case "$opt" in
+      k) key="$OPTARG";;
+      v) value="$OPTARG";;
+      i) is_integer "$OPTARG" && indent="$OPTARG"       || : ;;
+      p) is_integer "$OPTARG" && previous_key="$OPTARG" || : ;;
+      f) is_integer "$OPTARG" && first_key="$OPTARG"    || : ;;
+      s) source_array="$OPTARG";;
+    esac
+  done
+  shift $(($OPTIND - 1))
+
+  # OJO: función is_string, quizás debería ser un método y no una función en utils
+  if is_string "${value}" && \
+    ( [[ "${value}" =~ ${regex} ]] || [[ "${value: -1:1}" == ':' ]] )
+  then
+    value="$(__doLiteralBlock -i "${indent}" -v "${value}")"
+  else
+    value="$(__doFolding -i "${indent}" -v "${value}")"
+  fi
+
+  # OJO: debería preguntar por ${!value} ?
+  # OJO: debería ser un pseudo tipo, y no el verdadero tipo?
+  # me refiero a @_ o [_] 
+  # el if original pregunta si es un array.
   # if ($value === array()) $value = '[ ]';
+  if ! is_scalar "${value}" && is_empty_array "${value}"; then
+    value='[ ]'
+  fi
+  
   # if ($value === "") $value = '""';
+  if [[ -z ${value} ]]; then
+    value='""'
+  fi
+
   # if (self::isTranslationWord($value)) {
   #   $value = $this->_doLiteralBlock($value, $indent);
   # }
+  if __isTranslationWord "${value}"; then
+    value="$(__doLiteralBlock -i "${indent}" -v "${value}")"
+  fi
+
   # if (trim ($value) != $value)
-  #    $value = $this->_doLiteralBlock($value,$indent);
+  #   $value = $this->_doLiteralBlock($value, $indent);
+  if [[ "$(strip -s "${value}")" != "${value}" ]]; then
+    value="$(__doLiteralBlock -i "${indent}" -v "${value}")"
+  fi
 
   # if (is_bool($value)) {
   #    $value = $value ? "true" : "false";
-  # }
-
+  # } OJO: crear método.
+  if __is_bool "${value}"; then
+    value=$( [[ ${value} ]] && printf true || printf false )
+  fi
+  
   # if ($value === null) $value = 'null';
+  if __is_null "${value}"; then value='null'; fi
+
   # if ($value === "'" . self::REMPTY . "'") $value = null;
-
+  if [[ "${value}" == "'$REMPTY'" ]]; then
+    value='null'
+  fi
+  
   # $spaces = str_repeat(' ',$indent);
-
+  spaces="$(printf '%*s' ${indent})"
+  
   # //if (is_int($key) && $key - 1 == $previous_key && $first_key===0) {
   # if (is_array ($source_array) && array_keys($source_array) === range(0, count($source_array) - 1)) {
   #   // It's a sequence
@@ -436,7 +482,7 @@ setx='isTranslationWord'
 # Detect any word with translation value as meaning
 #==============================
 __isTranslationWord() {
-  local value=$1
+  local value="$@"
 
   __isTrueWord ${value}  || \
   __isFalseWord ${value} || \
