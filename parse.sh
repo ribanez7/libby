@@ -534,19 +534,31 @@ __getTranslations() {
 
 # LOADING METHODS:
 # ================
+
 setx='__load'
+#==============================
+# Guess the source and execute __loadWithSource with it.
+#==============================
 __load() {
-  local input=$1
-#     $Source = $this->loadFromSource($input);
-#     return $this->loadWithSource($Source);
+  local input="$@"
+  local Source
+
+  Source="$(__loadFromSource "${input}")"
+  __loadWithSource "${Source}"
+
 } # __load
 
 setx='__loadString'
 #==============================
+# Guess the source from a string and execute __loadWithSource with it.
+#==============================
 __loadString() {
   local input=$1
-#     $Source = $this->loadFromString($input);
-#     return $this->loadWithSource($Source);
+  local Source
+
+  Source="$(__loadFromString "${input}")"
+  __loadWithSource "${Source}"
+
 } # __loadString
 
 setx='__loadWithSource'
@@ -798,7 +810,7 @@ setx='__inlineEscape'
 # @return array
 #==============================
 __inlineEscape() {
-  local inline=$1 #($inline)
+  local inline="$@" #($inline)
 #     // There's gotta be a cleaner way to do this...
 #     // While pure sequences seem to be nesting just fine,
 #     // pure mappings and mappings with sequences inside can't go very
@@ -808,6 +820,7 @@ __inlineEscape() {
 #     $maps = array();
 #     $saved_strings = array();
 #     $saved_empties = array();
+  local -a seqs maps saved_strings saved_empties
 
 #     // Check for empty strings
 #     $regex = '/("")|(\'\')/';
@@ -816,6 +829,13 @@ __inlineEscape() {
 #       $inline  = preg_replace($regex,'YAMLEmpty',$inline);
 #     }
 #     unset($regex);
+  local regex="(\"\")|('')"
+  if [[ "${inline}" =~ ${regex} ]]; then
+    saved_empties+=( "${BASH_REMATCH[0]}" )
+    inline=preg_replace($regex,'YAMLEmpty',$inline);
+  fi
+  
+
 
 #     // Check for strings
 #     $regex = '/(?:(")|(?:\'))((?(1)[^"]+|[^\']+))(?(1)"|\')/';
@@ -1065,7 +1085,7 @@ __startsLiteralBlock() {
   local line="$@" \
         strip_line='' \
         lastChar='' \
-        html_pattern='<.*?>$'
+        html_pattern='<[^>]*>$'
 
   strip_line=$(strip -s "${line}")
   lastChar="${strip_line: -1}"
@@ -1162,31 +1182,62 @@ __stripIndent() {
 
 setx='__getParentPathByIndent'
 #==============================
+# it prints out the parent path by the given indent.
+# -p <string>  : current path of the object.
+# -i <integer> : indent
+#==============================
 __getParentPathByIndent() {
-#($indent)
-  local indent=$1
+  local path linePath
+  local -i indent OPTIND=1
 
-#     if ($indent == 0) return array();
-#     $linePath = $this->path;
-#     do {
+  while getopts :p:i: opt ; do
+    case "$opt" in
+      p) path="$OPTARG" ;;
+      i) is_integer "$OPTARG" && indent="$OPTARG" || : ;;
+    esac
+  done
+  shift $(($OPTIND - 1))
+
+  # OJO (¿cómo tratar el this? -- ¿Y el return array?):
+  [ ${indent} -ne 0 ] || return 1 # return array();
+
+  linePath="${path}"
+  #     $linePath = $this->path;
+  
+  while : ; do
 #       end($linePath); $lastIndentInParentPath = key($linePath);
-#       if ($indent <= $lastIndentInParentPath) array_pop ($linePath);
-#     } while ($indent <= $lastIndentInParentPath);
-#     return $linePath;
+    
+    [ ${indent} -gt ${lastIndentInParentPath} ] || pop -a 'linePath'
+    [ ${indent} -le ${lastIndentInParentPath} ] || break
+  done
+  
+  printf '%s' "$linePath"
 } # __getParentPathByIndent
 
 setx='__clearBiggerPathValues'
 #==============================
 __clearBiggerPathValues() {
-#($indent)
-#     if ($indent == 0) $this->path = array();
-#     if (empty ($this->path)) return true;
+    # OJO : ¿es necesario pasar el path aquí?
+    # originalmente no se pasaba.
+  local path linePath
+  local -i indent OPTIND=1
+
+  while getopts :p:i: opt ; do
+    case "$opt" in
+      p) path="$OPTARG" ;;
+      i) is_integer "$OPTARG" && indent="$OPTARG" || : ;;
+    esac
+  done
+  shift $(($OPTIND - 1))
+
+  [ ${indent} -ne 0 ] || path=( ) #     if ($indent == 0) $this->path = array();
+  [[ -n ${path} ]]    || return 0
 
 #     foreach ($this->path as $k => $_) {
 #       if ($k > $indent) unset ($this->path[$k]);
 #     }
 
-#     return true;
+  return 0
 } # __clearBiggerPathValues
 
 setx='__isComment'
@@ -1289,35 +1340,60 @@ __startsMappedSequence() {
 
 setx='__returnMappedSequence'
 #==============================
+# Returns an array and modifies the global associative array delayedPath
+#==============================
 __returnMappedSequence() {
-  local line="$@"
-#     $array = array();
-#     $key         = self::unquote(trim(substr($line,1,-1)));
-#     $array[$key] = array();
-#     $this->delayedPath = array(strpos ($line, $key) + $this->indent => $key);
-#     return array($array);
+  local line="$@" key='' clave
+  local -a array=()
+  local -i pos indent
+  
+  key="$(__unquote "$(strip -s "${line:1:-1}")")"
+  array[${key}]='@_' # si el valor de una key en un array es un array vacío
+                     # lo podremos detectar con '@_'
+
+  # OJO : postpuesto el tratamiento del this.
+  # $this->delayedPath = array(strpos ($line, $key) + $this->indent => $key);
+  pos=$(index -s "${line}" -c "${key}")
+  indent= # OJO!! necesitamos recuperar el indent!!
+  clave=$(( pos + indent ))
+  delayedPath=(
+    ["${clave}"]="${key}"
+  )
+
+  printf '%s ' "${array[@]}"
 } # __returnMappedSequence
 
 setx='__checkKeysInValue'
 #==============================
 __checkKeysInValue() {
-#($value)
+  local -a value=( "$@" )
+
+  if ! true ; then
 #     if (strchr('[{"\'', $value[0]) === false) {
+    if false; then
 #       if (strchr($value, ': ') !== false) {
-#           throw new Exception('Too many keys: '.$value);
-#       }
-#     }
+      echo 'Too many keys: ' "${value[@]}" 1>&2
+      return 1
+    fi
+  fi
 } # __checkKeysInValue
 
 setx='__returnMappedValue'
 #==============================
+# Prints out an array
+#==============================
 __returnMappedValue() {
-  local line="$@"
-#     $this->checkKeysInValue($line);
-#     $array = array();
-#     $key         = self::unquote (trim(substr($line,0,-1)));
-#     $array[$key] = '';
-#     return $array;
+  local line="$@" key=''
+  local -a array=()
+
+  # OJO : postpuesto el tratamiento del this.
+  #     $this->checkKeysInValue($line);
+  this=$(__checkKeysInValue "${line}" )
+
+  key="$(__unquote "$(strip -s "${line:0:-1}")")"
+  array[${key}]=''
+
+  printf '%s ' "${array[@]}"
 } # __returnMappedValue
 
 setx='__startsMappedValue'
@@ -1354,6 +1430,8 @@ __returnKeyValuePair() {
     if ( [[ "${line:0:1}" == '"' ]] || [[ "${line:0:1}" == "'" ]] ) && \
       [[ "${line}" =~ ${pattern} ]]
     then
+# OJO : escoja por favor:
+#      value="$(strip -s "${BASH_REMATCH[1]//${line}}")"
       value="$(strip -s "${line//${BASH_REMATCH[1]}}")"
       key="${BASH_REMATCH[2]}"
     else
@@ -1375,12 +1453,26 @@ __returnKeyValuePair() {
 
 setx='__returnArrayElement'
 #==============================
+# Prints out an array?
+#==============================
 __returnArrayElement() {
   local line="$@"
-#      if (strlen($line) <= 1) return array(array()); // Weird %)
-#      $array = array();
-#      $value   = trim(substr($line,1));
-#      $value   = $this->_toType($value);
+
+  # OJO: primer return
+  [ "${#line}" -gt 1 ] || return 1 # return array(array()); // Weird %)
+
+  local -a array=()
+  local value="$(strip -s "${line:1}")"
+  value="$(__toType "${value}")" #      $value   = $this->_toType($value);
+
+  if __isArrayElement "${value}"; then
+    value="$(__returnArrayElement "${value}")"
+  fi
+
+  array=( "${value}" )
+
+  printf '%s ' "${array[@]}"
+
 #      if ($this->isArrayElement($value)) {
 #        $value = $this->returnArrayElement($value);
 #      }
@@ -1422,52 +1514,50 @@ __nodeContainsGroup() {
 
 setx='__addGroup'
 #==============================
+# Modifies if necessary the env vars:
+# _containsGroupAnchor
+# _containsGroupAlias
+#==============================
 __addGroup() {
-# OJO : VARIABLE CONTAINSGROUPANCHOR y CONTAINSGROUPALIAS
-# DEBERÍAN SER SIMPLEMENTE BOOLEANS 0 Ó 1
-  local line group 
-  local -i OPTIND=1
-
-  while getopts :g: opt ; do
-    case "$opt" in
-      g) group="$OPTARG" ;;
-      # l)  line="$OPTARG" ;;
-    esac
-  done
-  shift $(($OPTIND - 1))
-
-  line="${@}"
+  local line="$1"; shift
+  local group="$@"
 
   if [[ "${group:0:1}" == '&' ]]; then
-    # $this->_containsGroupAnchor = substr ($group, 1);
     _containsGroupAnchor="${group:1}"
-  elif [[ "${group:0:1}" == '*' ]]; then
-    # $this->_containsGroupAlias = substr ($group, 1);
-    _containsGroupAlias="${group:1}"
   fi
 
+  if [[ "${group:0:1}" == '*' ]]; then
+    _containsGroupAlias="${group:1}"
+  fi 
 } # __addGroup
 
 setx='__stripGroup'
 #==============================
+# Prints out the stripped group
+#==============================
 __stripGroup() {
-# OJO : devuelve la línea correctamente?
-  local line group 
-  local -i OPTIND=1
-
-  while getopts :g: opt ; do
-    case "$opt" in
-      g) group="$OPTARG" ;;
-      # l)  line="$OPTARG" ;;
-    esac
-  done
-  shift $(($OPTIND - 1))
-
-  line="${@}"
-  line="${line//${group}}"
-  line="$(strip -s "${line}")"
-
+  local line="$1"; shift
+  local group="$@"
+  line="$(strip -s "${group//${line}}")"
   printf '%s' "${line}"
+
+# OJO : devuelve la línea correctamente?
+#  local line group 
+#  local -i OPTIND=1
+
+#  while getopts :g: opt ; do
+#    case "$opt" in
+#      g) group="$OPTARG" ;;
+#      # l)  line="$OPTARG" ;;
+#    esac
+#  done
+#  shift $(($OPTIND - 1))
+
+#  line="${@}"
+#  line="${line//${group}}"
+#  line="$(strip -s "${line}")"
+
+#  printf '%s' "${line}"
 } # __stripGroup
 
 ## FIN DE LA CLASE.
