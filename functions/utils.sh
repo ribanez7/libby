@@ -33,7 +33,7 @@
 
 # ARRAYS:
 # =======
-# pop
+# pop (alias: array_pop)
 # array_join
 
 # MISCELANEA:
@@ -300,6 +300,7 @@ pop() {
   # Copy array back to $arrayname
   eval "$arrayname=( \"\${array[@]}\" )"
 } # pop
+alias array_pop='pop'
 
 setx='array_join'
 #==============================
