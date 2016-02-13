@@ -30,6 +30,7 @@
 # lstrip (alias: ltrim)
 # rstrip (alias: rtrim)
 # index (alias: strpos)
+# word_wrap
 
 # ARRAYS:
 # =======
@@ -265,6 +266,19 @@ index() {
   printf '%d' $((${#str}+${offset}))
 } # index
 alias strpos='index'
+
+setx=word_wrap
+#==============================
+# Returns the given string wrapped at the specified length.
+# Wraps a string to a given number of characters using a string break character.
+# -w <integer> : The width
+# -b <string>  : A break value
+# -c [0|1]     : 0 by default, a cut approach.
+# -- <string>  : The input string
+#==============================
+word_wrap(){
+
+} # word_wrap
 
 #==============================================================================
 # ARRAYS:

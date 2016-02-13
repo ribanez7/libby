@@ -43,10 +43,10 @@ typeset -i _dumpIndent _dumpWordWrap INDENT=2 WORDWRAP=40
 typeset -A SavedGroups delayedPath
 
 ## Untyped:
-path=''
-result=''
+path=
+result=
 LiteralPlaceHolder='___YAML_Literal_Block___'
-_nodeId=''
+_nodeId=
 
 # REQUIREMENTS:
 # =============
@@ -144,7 +144,7 @@ setx=dump
 # -n      : int $no_opening_dashes Do not start YAML file with "---\n".
 #==============================
 dump() {
-  local array string=''
+  local array string=
   local -i OPTIND=1 \
            indent=${INDENT}} \
            wordwrap=${WORDWRAP} \
@@ -235,30 +235,35 @@ setx='__yamelizeArray'
 # @param $array The array you want to convert
 # @param $indent The indent of the current level
 #==============================
-__yamelizeArray() { 
+__yamelizeArray() {
+    # OJO: FALTA EL WRAPPER.
 #($array,$indent)
-  # if (is_array($array)) {
-  #   $string = '';
-  #   $previous_key = -1;
-  #   foreach ($array as $key => $value) {
-  #     if (!isset($first_key)) $first_key = $key;
-  #     $string .= $this->_yamlize($key, $value, $indent, $previous_key, $first_key, $array);
-  #     $previous_key = $key;
-  #   }
-  #   return $string;
-  # } else {
-  #   return false;
-  # }
+# if (is_array($array)) {
+  if _IS_ARRAY_($ARRAY); then
+    local string= key= value=
+    local -i previous_key=-1
+
+    for key in "${!array[@]}"; do
+      value="${array[$key]}"
+      [[ -n "${first_key}" ]] || first_key="${key}"
+      string+="$(__yamelize -k "${key}" -v "${value}" -i ${indent} -p "${previous_key}" -f "${first_key}" -- "${array[@]}" )"
+      #     $string .= $this->_yamlize($key, $value, $indent, $previous_key, $first_key, $array);
+      previous_key="${key}"
+    done
+
+    printf '%s' "${string}"
+  else 
+    return 1
+  fi
 } # __yamleizeArray
 
 setx='__dumpNode'
 #==============================
 # Returns YAML from a key and a value
-# @access private
-# @return string
-# @param $key The name of the key
-# @param $value The value of the item
-# @param $indent The indent of the current node
+# Prints out a string
+# -k $key    : The name of the key
+# -v $value  : The value of the item
+# -i $indent : The indent of the current node
 #==============================
 __dumpNode() {
 #($key, $value, $indent, $previous_key = -1, $first_key = 0, $source_array = null)
@@ -349,10 +354,9 @@ __dumpNode() {
 setx='__doLiteralBlock'
 #==============================
 # Creates a literal block for dumping
-# @access private
-# @return string
-# @param $value
-# @param $indent int The value of the indent
+# Prints out a string
+# -i $indent : The value of the indent
+# -v $value  : The value
 #==============================
 __doLiteralBlock() {
 #($value,$indent)
@@ -384,25 +388,39 @@ __doLiteralBlock() {
 setx='__doFolding'
 #==============================
 # Folds a string of text, if necessary
-# @access private
-# @return string
-# @param $value The string you wish to fold
+# Prints out a string
+# $1 $indent
+# $2..n $value : The string you wish to fold
 #==============================
 __doFolding() {
-#($value,$indent)
-  # // Don't do anything if wordwrap is set to 0
-  # if ($this->_dumpWordWrap !== 0 && is_string ($value) && strlen($value) > $this->_dumpWordWrap) {
-  #   $indent += $this->_dumpIndent;
-  #   $indent = str_repeat(' ',$indent);
-  #   $wrapped = wordwrap($value,$this->_dumpWordWrap,"\n$indent");
-  #   $value   = ">\n".$indent.$wrapped;
-  # } else {
-  #   if ($this->setting_dump_force_quotes && is_string ($value) && $value !== self::REMPTY)
-  #     $value = '"' . $value . '"';
-  #   if (is_numeric($value) && is_string($value))
-  #     $value = '"' . $value . '"';
-  # }
-  # return $value;
+  #($value,$indent)
+  local indent="$1"; shift
+  local value="$@"
+
+  # Don't do anything if wordwrap is set to 0
+  if [ $(__dumpWordWrap) -ne 0 ] &&\
+    ! is_integer "${value}"      &&\
+    is_scalar "${value}"         &&\
+    [ "${#value}" -gt $(__dumpWordWrap) ]
+  then
+    indent+=$(__dumpIndent) # OJO: debería recibir input, este dumpindent?
+                            # originalmente recibía this.
+    indent="$(printf '%*s' ${indent})"
+    wrapped="$(word_wrap -w "$(__dumpWordWrap)"-b "\n${indent}" -- "${value}")"
+    value=">\n${indent}${wrapped}"
+  else
+    if [ ${setting_dump_force_quotes} -eq 1 ] &&\
+      ! is_integer "${value}"                 &&\
+      is_scalar "${value}"                    &&\
+      $value !== self::REMPTY
+    then
+      value="\"${value}\""
+    fi  
+  # if (is_numeric($value) && is_string($value))
+  #   $value="\"${value}\""
+  fi
+
+  printf '%s' "${value}"
 } # __doFolding
 
 setx='isTrueWord'
@@ -1083,8 +1101,8 @@ setx='__startsLiteralBlock'
 #==============================
 __startsLiteralBlock() {
   local line="$@" \
-        strip_line='' \
-        lastChar='' \
+        strip_line= \
+        lastChar= \
         html_pattern='<[^>]*>$'
 
   strip_line=$(strip -s "${line}")
@@ -1343,7 +1361,7 @@ setx='__returnMappedSequence'
 # Returns an array and modifies the global associative array delayedPath
 #==============================
 __returnMappedSequence() {
-  local line="$@" key='' clave
+  local line="$@" key= clave
   local -a array=()
   local -i pos indent
   
@@ -1383,7 +1401,7 @@ setx='__returnMappedValue'
 # Prints out an array
 #==============================
 __returnMappedValue() {
-  local line="$@" key=''
+  local line="$@" key=
   local -a array=()
 
   # OJO : postpuesto el tratamiento del this.
