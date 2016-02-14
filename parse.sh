@@ -28,6 +28,7 @@ readonly PROGNAME=$(sed 's/\.sh$//' <<<"${0##*/}") \
          SCRIPTNAME=$(basename $0) \
          SCRIPTDIR=$(readlink -m $(dirname $0)) \
          TMPDIR=/tmp/${PROGNAME}.$$ \
+         REMPTY=$'\0\0\0\0\0'
          ARGS="$@"
 
 # GLOBALS:
@@ -209,10 +210,10 @@ __yamelize() {
   shift $(($OPTIND - 1))
 
 
-
-  #   if (is_array($value)) {
-  #   if (empty ($value))
-  #     return $this->_dumpNode($key, array(), $indent, $previous_key, $first_key, $source_array);
+# OJO!!
+  if is_array "${value}"; then
+    if [[ -z "${value}" ]]; then
+  #   return $this->_dumpNode($key, array(), $indent, $previous_key, $first_key, $source_array);
   #   // It has children.  What to do?
   #   // Make it the right kind of item
   #   $string = $this->_dumpNode($key, self::REMPTY, $indent, $previous_key, $first_key, $source_array);
@@ -220,11 +221,11 @@ __yamelize() {
   #   $indent += $this->_dumpIndent;
   #   // Yamlize the array
   #   $string .= $this->_yamlizeArray($value,$indent);
-  # } elseif (!is_array($value)) {
+  elif ! is_array "${value}"; then
   #   // It doesn't have children.  Yip.
   #   $string = $this->_dumpNode($key, $value, $indent, $previous_key, $first_key, $source_array);
-  # }
-  # return $string;
+  fi
+  printf '%s' "${string}"
 } # __yamleize
 
 setx='__yamelizeArray'
@@ -338,17 +339,22 @@ __dumpNode() {
   # $spaces = str_repeat(' ',$indent);
   spaces="$(printf '%*s' ${indent})"
   
-  # //if (is_int($key) && $key - 1 == $previous_key && $first_key===0) {
-  # if (is_array ($source_array) && array_keys($source_array) === range(0, count($source_array) - 1)) {
-  #   // It's a sequence
-  #   $string = $spaces.'- '.$value."\n";
-  # } else {
-  #   // if ($first_key===0)  throw new Exception('Keys are all screwy.  The first one was zero, now it\'s "'. $key .'"');
-  #   // It's mapped
-  #   if (strpos($key, ":") !== false || strpos($key, "#") !== false) { $key = '"' . $key . '"'; }
-  #   $string = rtrim ($spaces.$key.': '.$value)."\n";
-  # }
-  # return $string;
+  # OJO:
+  if is_array "${source_array}" && \
+    array_keys($source_array) === range(0, count($source_array) - 1))
+  then
+    # It's a sequence
+    string="${spaces}- ${value}\n"
+  else
+    # It's mapped
+    local rx=':|#'
+    if ! [[ "${key}" =~ ${rx} ]]; then
+      key="\"${key}\""
+    fi
+    string="$(rstrip -s "${spaces}${key}: ${value}\n")"
+  fi
+    
+  printf '%s' "${string}"
 } # __dumpNode
 
 setx='__doLiteralBlock'
@@ -359,7 +365,29 @@ setx='__doLiteralBlock'
 # -v $value  : The value
 #==============================
 __doLiteralBlock() {
-#($value,$indent)
+  local indent="$1"; shift
+  local value="$@"
+
+  if [[ "${value}" == '\n' ]]; then
+    printf '%s' '\n'
+    return 0
+  fi
+
+  if ! [[ "${value}" =~ '\n' ]] && ! [[ "${value}" =~ "'" ]]; then
+    printf "'%s'" "${value}"
+    return 0
+  fi
+
+  if ! [[ "${value}" =~ '\n' ]] && ! [[ "${value}" =~ '"' ]]; then
+    printf '"%s"' "${value}"
+    return 0
+  fi
+
+  mapfile -t exploded <<<"$(echo -e "${hola}")"
+  newValue='|'
+
+
+  
   # if ($value === "\n") return '\n';
   # if (strpos($value, "\n") === false && strpos($value, "'") === false) {
   #   return sprintf ("'%s'", $value);
@@ -393,7 +421,6 @@ setx='__doFolding'
 # $2..n $value : The string you wish to fold
 #==============================
 __doFolding() {
-  #($value,$indent)
   local indent="$1"; shift
   local value="$@"
 
@@ -412,7 +439,7 @@ __doFolding() {
     if [ ${setting_dump_force_quotes} -eq 1 ] &&\
       ! is_integer "${value}"                 &&\
       is_scalar "${value}"                    &&\
-      $value !== self::REMPTY
+      [[ "${value}" != "${REMPTY}" ]]
     then
       value="\"${value}\""
     fi  
@@ -645,7 +672,7 @@ setx='__loadFromSource'
 #==============================
 # OJO
 __loadFromSource() {
-  local input="$@"
+v  local input="$@"
 
   if [[ -n "${input}" ]]          && \
     ! index -s "${index}" -c '\n' && \
@@ -706,8 +733,9 @@ __parseLine() {
 #       $line = $this->stripGroup ($line, $group);
 #     }
 
-#     if ($this->startsMappedSequence($line))
-#       return $this->returnMappedSequence($line);
+  if __startsMappedSequence "${line}"; then
+    __returnMappedSequence "${line}"
+  fi
 
 #     if ($this->startsMappedValue($line))
 #       return $this->returnMappedValue($line);

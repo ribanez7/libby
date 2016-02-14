@@ -30,6 +30,7 @@
 # lstrip (alias: ltrim)
 # rstrip (alias: rtrim)
 # index (alias: strpos)
+# printq
 # word_wrap
 
 # ARRAYS:
@@ -148,6 +149,13 @@ printf_if_non_blank() {
   local s="$@"
   [[ "${s}" =~ ^[[:space:]]*$ ]] || printf '%s' "${s}"
 } # printf_in_non_blank
+
+setx='printq'
+printq() {
+  local text="$@"
+  text="$(printf '%q' "${text}")"
+  printf '%s' "${text:2:-1}"
+} # printq
 
 setx='strip'
 #==============================
@@ -272,12 +280,30 @@ setx=word_wrap
 # Returns the given string wrapped at the specified length.
 # Wraps a string to a given number of characters using a string break character.
 # -w <integer> : The width
-# -b <string>  : A break value
+# -b <string>  : A break value. By default '\n'
 # -c [0|1]     : 0 by default, a cut approach.
 # -- <string>  : The input string
 #==============================
 word_wrap(){
+  local break='\n' total
+  local -i OPTIND=1 width cut=0
+  
+  while getopts :w:b:c opt ; do
+    case "$opt" in
+    w) width="${OPTARG:?ArgumentError}" ;;
+    b) break="${OPTARG}"                ;;
+    c)   cut=1                          ;;
+    esac
+  done
+  shift $(($OPTIND - 1))
 
+  local string="$@"
+  
+  while IFS= read -r -n ${width} -- part ; do
+    total+="${part}${break}"
+  done <<<"${string}"
+  # OJO :
+  printf '%s' "${total}"
 } # word_wrap
 
 #==============================================================================
