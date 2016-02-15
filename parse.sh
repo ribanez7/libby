@@ -17,6 +17,14 @@
 #% 2016-01-15       :  created by Rubén Ibáñez Carmona
 #%
 
+
+# leyenda:
+# The placeholder OJO will show you the possible issues.
+# We'll have problems with the variable scope. It will be necessary to
+# dynamically scope them. Now, the 95% of them are local.
+# see: http://mywiki.wooledge.org/BashFAQ/084
+
+
 # BASH SETTINGS:
 # ==============
 set -eu -o pipefail
@@ -28,7 +36,7 @@ readonly PROGNAME=$(sed 's/\.sh$//' <<<"${0##*/}") \
          SCRIPTNAME=$(basename $0) \
          SCRIPTDIR=$(readlink -m $(dirname $0)) \
          TMPDIR=/tmp/${PROGNAME}.$$ \
-         REMPTY=$'\0\0\0\0\0'
+         REMPTY=$'\0\0\0\0\0' \
          ARGS="$@"
 
 # GLOBALS:
@@ -65,7 +73,7 @@ setx=load
 #==============================
 load() {
   local input="$@"
-  echo __loadString $input
+  __loadString $input
 } # load
 
 setx=loadFile
@@ -382,35 +390,39 @@ __doLiteralBlock() {
     printf '"%s"' "${value}"
     return 0
   fi
-
-  mapfile -t exploded <<<"$(echo -e "${hola}")"
+  # OJO : ojo al explode.
+  mapfile -t exploded <<<"$(printf '%b' "${value}")"
   newValue='|'
 
+  if is_declared exploded[0]          && \
+    ( [[ "${exploded[0]]}" == '|' ]]  || \
+      [[ "${exploded[0]]}" == '|-' ]] || \
+      [[ "${exploded[0]]}" == '>' ]] )
+  then
+    newValue="${exploded[0]]}"
+    unset exploded[0]
+  fi
+  # OJO: check the unset and the for quotes.
+  indent="$(__dumpIndent)"
+  spaces="$(printf '%*s' ${indent})"
 
-  
-  # if ($value === "\n") return '\n';
-  # if (strpos($value, "\n") === false && strpos($value, "'") === false) {
-  #   return sprintf ("'%s'", $value);
-  # }
-  # if (strpos($value, "\n") === false && strpos($value, '"') === false) {
-  #   return sprintf ('"%s"', $value);
-  # }
-  # $exploded = explode("\n",$value);
-  # $newValue = '|';
-  # if (isset($exploded[0]) && ($exploded[0] == "|" || $exploded[0] == "|-" || $exploded[0] == ">")) {
-  #     $newValue = $exploded[0];
-  #     unset($exploded[0]);
-  # }
-  # $indent += $this->_dumpIndent;
-  # $spaces   = str_repeat(' ',$indent);
-  # foreach ($exploded as $line) {
-  #   $line = trim($line);
-  #   if (strpos($line, '"') === 0 && strrpos($line, '"') == (strlen($line)-1) || strpos($line, "'") === 0 && strrpos($line, "'") == (strlen($line)-1)) {
-  #     $line = substr($line, 1, -1);
-  #   }
-  #   $newValue .= "\n" . $spaces . ($line);
-  # }
-  # return $newValue;
+  # OJO: los paréntesis del if
+  for line in "${exploded[@]}"; do
+    line="$(strip -s "${line}")"
+    lenLine="${#line}"
+    if ( [ $(index -s "${line}" -c '"') -eq 0 ] && \
+      [ $(rindex -s "${line}" -c '"') -eq $(( lenLine - 1 )) ] ) || \
+      ( [ $(index -s "${line}" -c "'") -eq 0 ]  && \
+      [ $(rindex -s "${line}" -c "'") -eq $(( lenLine - 1 )) ] )
+    then
+      line="${line:1:-1}"
+    fi
+
+    # OJO : $newValue .= "\n" . $spaces . ($line);
+    newValue+="\n${spaces}${line}"
+  done
+
+  printf '%s' "${newValue}"
 } # __doLiteralBlock
 
 setx='__doFolding'
@@ -611,6 +623,11 @@ setx='__loadWithSource'
 __loadWithSource() {
 #($Source)
 #     if (empty ($Source)) return array();
+
+  if [ ${setting_use_syck_is_possible} -ne 0 ] && is_function syck_load; then
+    array=( $() )
+    if is_scalar array; then
+      
 #     if ($this->setting_use_syck_is_possible && function_exists ('syck_load')) {
 #       $array = syck_load (implode ("\n", $Source));
 #       return is_array($array) ? $array : array();

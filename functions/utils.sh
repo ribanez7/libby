@@ -22,6 +22,7 @@
 # is_scalar
 # is_array
 # is_hash
+# is_declared
 
 # STRINGS:
 # ========
@@ -30,6 +31,7 @@
 # lstrip (alias: ltrim)
 # rstrip (alias: rtrim)
 # index (alias: strpos)
+# rindex (alias: strrpos)
 # printq
 # word_wrap
 
@@ -90,9 +92,9 @@ dothis() {
 }
 
 # The minimum version of bash required to run this library is bash v4
-if bash --version | egrep -q 'GNU bash, version [1-3]' ; then
+if [ ${BASH_VERSION:0:1} -lt 4 ]; then
   fail "This library requires at least version 4 of bash"
-  fail "You are running: $(bash --version | head -1)"
+  fail "You are running: ${BASH_VERSION}"
   exit 1
 fi
 export MYPID=$$
@@ -136,6 +138,19 @@ is_hash() {
   declare -p "${1:?}" 2> /dev/null | grep -qE '^declare \-[^ ]*A[^ ]*'
 }
 
+is_declared() {
+  local var=$1
+  if [ ${BASH_VERSION:0:1} -eq 4 ]; then
+    if [ ${BASH_VERSION:2:1} -lt 2 ]; then
+      [[ ${var+_} ]]
+    else
+      [[ -v ${var} ]]
+    fi
+  else
+    return 1
+  fi
+}
+
 #==============================================================================
 # VERBS:
 #==============================================================================
@@ -154,6 +169,7 @@ setx='printq'
 printq() {
   local text="$@"
   text="$(printf '%q' "${text}")"
+  text="${text//\\\'/\'}"
   printf '%s' "${text:2:-1}"
 } # printq
 
@@ -242,6 +258,7 @@ alias rtrim='rstrip'
 
 setx='index'
 #==============================
+# find the position of the first occurrence of asubstring within a string
 # -s <string> : input string
 # -c <string> : character to find
 # -o <int>    : the offset, if needed
@@ -275,6 +292,42 @@ index() {
 } # index
 alias strpos='index'
 
+setx='rindex'
+#==============================
+# find the position of the last occurrence of asubstring within a string
+# -s <string> : input string
+# -c <string> : character to find
+# -o <int>    : the offset, if needed
+#==============================
+rindex() {
+  local str char string
+  local -i OPTIND=1 offset=0
+
+  while getopts :s:c: opt ; do
+    case "$opt" in
+      s) string="$OPTARG"; str="${string}" ;;
+      c) char="$OPTARG" ;;
+      o) is_integer? "$OPTARG" && offset="$OPTARG" || : ;;
+    esac
+  done
+  shift $(($OPTIND - 1))
+
+  if [ ${offset} -gt 0 ]; then
+    str="${str:${offset}}"
+  else
+    offset=0
+  fi
+
+  str=${str%${char}*}
+
+  if [ "${#str}" -eq "${#string}" ]; then
+    return 1
+  fi
+
+  printf '%d' $((${#str}+${offset}))
+} # index
+alias strrpos='rindex'
+
 setx=word_wrap
 #==============================
 # Returns the given string wrapped at the specified length.
@@ -303,7 +356,8 @@ word_wrap(){
     total+="${part}${break}"
   done <<<"${string}"
   # OJO :
-  printf '%s' "${total}"
+  #printf '%s' "${total}"
+  printf '%b' "${total}"
 } # word_wrap
 
 #==============================================================================
