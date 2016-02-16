@@ -403,7 +403,7 @@ __doLiteralBlock() {
     unset exploded[0]
   fi
   # OJO: check the unset and the for quotes.
-  indent="$(__dumpIndent)"
+  indent="${_dumpIndent}"
   spaces="$(printf '%*s' ${indent})"
 
   # OJO: los paréntesis del if
@@ -442,8 +442,7 @@ __doFolding() {
     is_scalar "${value}"         &&\
     [ "${#value}" -gt $(__dumpWordWrap) ]
   then
-    indent+=$(__dumpIndent) # OJO: debería recibir input, este dumpindent?
-                            # originalmente recibía this.
+    (( indent += _dumpIndent ))
     indent="$(printf '%*s' ${indent})"
     wrapped="$(word_wrap -w "$(__dumpWordWrap)"-b "\n${indent}" -- "${value}")"
     value=">\n${indent}${wrapped}"
@@ -620,69 +619,105 @@ __loadString() {
 
 setx='__loadWithSource'
 #==============================
+# Returns an array
+#==============================
 __loadWithSource() {
 #($Source)
 #     if (empty ($Source)) return array();
 
   if [ ${setting_use_syck_is_possible} -ne 0 ] && is_function syck_load; then
-    array=( $() )
-    if is_scalar array; then
-      
-#     if ($this->setting_use_syck_is_possible && function_exists ('syck_load')) {
-#       $array = syck_load (implode ("\n", $Source));
-#       return is_array($array) ? $array : array();
-#     }
+    array=( $(syck_load "$(printq "${Source}")") )
+    if ! is_scalar array; then
+      printb "${array[@]}"
+      return 0
+    else
+      return 1 # OJO
+    fi
+  fi
+  # $array = syck_load (implode ("\n", $Source));
+  # return is_array($array) ? $array : array();
 
-#     $this->path = array();
-#     $this->result = array();
+  local line              \
+        lstripLine        \
+        tempPath          \
+        path              \
+        literalBlockStyle \
+        literalBlock      \
+        lstripPlusOne
+# OJO : revisar el uso de estos arrays. Creo deberían ser globales.
+  local -a path   \
+           result
 
-#     $cnt = count($Source);
-#     for ($i = 0; $i < $cnt; $i++) {
-#       $line = $Source[$i];
+  local -i i                    \
+           cnt="${#Source[@]}"  \
+           indent               \
+           lenLine              \
+           lstripLenLine        \
+           literal_block_indent
 
-#       $this->indent = strlen($line) - strlen(ltrim($line));
-#       $tempPath = $this->getParentPathByIndent($this->indent);
-#       $line = self::stripIndent($line, $this->indent);
-#       if (self::isComment($line)) continue;
-#       if (self::isEmpty($line)) continue;
-#       $this->path = $tempPath;
+  for (( i = 0; i < cnt; i++ )); do
+    line="${Source[i]}"
+    lenLine="${#line}"
 
-#       $literalBlockStyle = self::startsLiteralBlock($line);
-#       if ($literalBlockStyle) {
-#         $line = rtrim ($line, $literalBlockStyle . " \n");
-#         $literalBlock = '';
-#         $line .= ' '.$this->LiteralPlaceHolder;
-#         $literal_block_indent = strlen($Source[$i+1]) - strlen(ltrim($Source[$i+1]));
-#         while (++$i < $cnt && $this->literalBlockContinues($Source[$i], $this->indent)) {
-#           $literalBlock = $this->addLiteralLine($literalBlock, $Source[$i], $literalBlockStyle, $literal_block_indent);
-#         }
-#         $i--;
-#       }
+    lstripLine="$(lstrip -s "${line}")"
+    lstripLenLine="${#lstripLine}"
+    indent=$(( lenLine - lstripLenLine ))
+    tempPath="$(__getParentPathByIndent -i "${indent}")"
+    line="$(__stripIndent -i "${indent}" -l "${line}")"
+    ! __isComment "${line}" || continue
+    ! __isEmpty "${line}"   || continue
+    path="${tempPath}"
 
-#       // Strip out comments
-#       if (strpos ($line, '#')) {
-#           $line = preg_replace('/\s*#([^"\']+)$/','',$line);
-#       }
+    literalBlockStyle="$(__startsLiteralBlock "${line}")" # OJO : quizás aquí
+                                                          # se necesita boolean
+                                                          # aunque no lo creo.
+    if [[ -z "${literalBlockStyle}" ]]; then
+      line="$(rstrip -s "${line}" -c "${literalBlockStyle} \n")"
+      literalBlock=''
+      line+=" ${LiteralPlaceHolder}"
+      lstripPlusOne="$(lstrip -s "${Source[i+1]}")"
+      literal_block_indent=$(( ${#Source[i+1]} - ${#lstripPlusOne} ))
+      while (( ++i < cnt )) && __literalBlockContinues ${indent} "${Source[i]}"
+      do
+        literalBlock="$(__addLiteralLine -b "${literalBlock}" \
+                                         -l "${Source[i]}" \
+                                         -s "${literalBlockStyle}" \
+                                         -i "${literal_block_indent}")"
+      done
+      (( i-- ))
+    fi
 
-#       while (++$i < $cnt && self::greedilyNeedNextLine($line)) {
-#         $line = rtrim ($line, " \n\t\r") . ' ' . ltrim ($Source[$i], " \t");
-#       }
-#       $i--;
+    # Strip out comments
+    local rx="[[:space:]]*#([^\"']+)$"
+    if [[ "${line}" =~ '#' ]]; then
+      if [[ "${line}" =~ ${rx} ]]; then
+        line="${line/${BASH_REMATCH[0]}}"
+      fi
+    fi
 
-#       $lineArray = $this->_parseLine($line);
+    while (( ++i < cnt )) && __greedilyNeedNextLine "${line}"; do
+      line="$(rstrip -s "${line}") $(lstrip -s "${Source[i]}" -c ' \t')"
+    done
+    (( i-- ))
 
-#       if ($literalBlockStyle)
-#         $lineArray = $this->revertLiteralPlaceHolder ($lineArray, $literalBlock);
 
+    lineArray=$this->_parseLine($line);
+
+    if [[ -z "${literalBlockStyle}" ]]; then
+      lineArray=$this->revertLiteralPlaceHolder ($lineArray, $literalBlock);
+    fi
 #       $this->addArray($lineArray, $this->indent);
 
-#       foreach ($this->delayedPath as $indent => $delayedPath)
-#         $this->path[$indent] = $delayedPath;
+    local ind delPa
+    for ind in ${!delayedPath[@]}; do
+      delPa="${delayedPath[${ind}]}"
+      path[$ind]="${delPa}"
+    done
 
-#       $this->delayedPath = array();
+    delayedPath=()
+  done
 
-#     }
-#     return $this->result;
+  # return $this->result;
 } # __loadWithSource
 
 setx='__loadFromSource'
@@ -734,37 +769,29 @@ __parseLine() {
 #     if (!$line) return array();
   line=$(strip -s "${line}")
   [[ -n $line ]] || return 0
-#     $line = trim($line);
-#     if (!$line) return array();
 
   local -a array=()
-#     $array = array();
+
   local group=$(__nodeContainsGroup "${line}")
+
   if [[ -n "${group}"]]; then
     __addGroup -l "${line}" -g "${group}"
     line=$(__stripGroup -l "${line}" -g "${group}")
   fi
-#     $group = $this->nodeContainsGroup($line);
-#     if ($group) {
-#       $this->addGroup($line, $group);
-#       $line = $this->stripGroup ($line, $group);
-#     }
 
   if __startsMappedSequence "${line}"; then
     __returnMappedSequence "${line}"
   fi
 
-#     if ($this->startsMappedValue($line))
-#       return $this->returnMappedValue($line);
+  if __isArrayElement "${line}"; then
+    __returnArrayElement "${line}"
+  fi
 
-#     if ($this->isArrayElement($line))
-#      return $this->returnArrayElement($line);
+  if __isPlainArray "${line}"; then
+    __returnPlainArray "${line}"
+  fi
 
-#     if ($this->isPlainArray($line))
-#      return $this->returnPlainArray($line);
-
-
-#     return $this->returnKeyValuePair($line);
+  __returnKeyValuePair "${line}"
 } # __parseLine
 
 setx='__toType'
@@ -1183,36 +1210,76 @@ setx='__addLiteralLine'
 #==============================
 __addLiteralLine() {
 #($literalBlock, $line, $literalBlockStyle, $indent = -1)
-#     $line = self::stripIndent($line, $indent);
-#     if ($literalBlockStyle !== '|') {
-#         $line = self::stripIndent($line);
-#     }
-#     $line = rtrim ($line, "\r\n\t ") . "\n";
-#     if ($literalBlockStyle == '|') {
-#       return $literalBlock . $line;
-#     }
-#     if (strlen($line) == 0)
-#       return rtrim($literalBlock, ' ') . "\n";
-#     if ($line == "\n" && $literalBlockStyle == '>') {
-#       return rtrim ($literalBlock, " \t") . "\n";
-#     }
-#     if ($line != "\n")
-#       $line = trim ($line, "\r\n ") . " ";
-#     return $literalBlock . $line;
+  local line literalBlock literalBlockStyle
+  local -i indent=-1 OPTIND=1
+
+  while getopts :b:l:s:i: opt ; do
+    case "$opt" in
+      b) literalBlock="$OPTARG"
+      l) line="$OPTARG" ;;
+      s) literalBlockStyle="$OPTARG" ;;
+      i) is_integer "$OPTARG" && indent="$OPTARG" || : ;;
+    esac
+  done
+  shift $(($OPTIND - 1))
+
+  line="$(__stripIndent -i ${indent} -l "${line}")"
+  if [[ "${literalBlockStyle}" != '|' ]]; then
+    line="$(__stripIndent -l "${line}")"
+  fi
+  
+  # OJO : printb?
+  line="$(rstrip -s "${line}")\n"
+  if [[ "${literalBlockStyle}" == '|' ]]; then
+    printf '%s%s' "${literalBlock}" "${line}"
+    return 0
+  fi
+
+  if [ "${#line}" -eq 0 ]; then
+    local tmp="$(rstrip -s "${literalBlock}" -c ' ')"
+    echo -n "${tmp}\n"
+    return 0
+  fi
+
+  if [[ "${line}" == '\n' ]] && [[ "${literalBlockStyle}" == '>' ]]; then
+    echo -n "$(rstrip -s "${literalBlock}" -c ' \t')" "\n"
+  fi
+
+  if [[ "${line}" != '\n' ]]; then
+    line="$(strip -s "${line}" -c '\r\n') "
+  fi
+
+  printf '%s%s' "${literalBlock}" "${line}"
 } # __addLiteralLine
 
-setx='revertLiteralPlaceHolder'
+setx='__revertLiteralPlaceHolder'
 #==============================
-revertLiteralPlaceHolder() {
-#($lineArray, $literalBlock)
-#      foreach ($lineArray as $k => $_) {
-#       if (is_array($_))
-#         $lineArray[$k] = $this->revertLiteralPlaceHolder ($_, $literalBlock);
-#       else if (substr($_, -1 * strlen ($this->LiteralPlaceHolder)) == $this->LiteralPlaceHolder)
-# 	       $lineArray[$k] = rtrim ($literalBlock, " \r\n");
-#      }
-#      return $lineArray;
-} # revertLiteralPlaceHolder
+__revertLiteralPlaceHolder() {
+  local -i OPTIND=1
+  local lineArray literalBlock
+
+  while getopts :a:b: opt ; do
+    case "$opt" in
+      a)    lineArray="$OPTARG" ;;
+      b) literalBlock="$OPTARG" ;;
+    esac
+  done
+  shift $(($OPTIND - 1))
+
+  local -i lenLiteralPlaceholder="${#LiteralPlaceHolder}"
+
+  for k in "${!lineArray[@]}"; do
+    __="${lineArray[$k]}"
+    if ! is_scalar "$__"; then
+      lineArray[$k]="$(__revertLiteralPlaceholder -a "${__}" \
+                                                  -b "${literalBlock}")"
+    elif [[ "${__: -1 * ${#LiteralPlaceHolder}}" == "${LiteralPlaceHolder}" ]]
+    then
+      lineArray[$k]="$(rstrip -s "${literalBlock}")"
+    fi
+  done
+  # return $lineArray;
+} # __revertLiteralPlaceHolder
 
 setx='__stripIndent'
 #==============================
@@ -1227,8 +1294,8 @@ __stripIndent() {
 
   while getopts :l:i: opt ; do
     case "$opt" in
-      l) line="$OPTARG" ;;
       i) is_integer "$OPTARG" && indent="$OPTARG" || : ;;
+      l) line="$OPTARG" ;;
     esac
   done
   shift $(($OPTIND - 1))
@@ -1246,8 +1313,8 @@ __stripIndent() {
 setx='__getParentPathByIndent'
 #==============================
 # it prints out the parent path by the given indent.
-# -p <string>  : current path of the object.
 # -i <integer> : indent
+# -p <string>  : current path of the object.
 #==============================
 __getParentPathByIndent() {
   local path linePath

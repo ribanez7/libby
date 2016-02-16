@@ -33,6 +33,7 @@
 # index (alias: strpos)
 # rindex (alias: strrpos)
 # printq
+# printb
 # word_wrap
 
 # ARRAYS:
@@ -171,6 +172,11 @@ printq() {
   text="$(printf '%q' "${text}")"
   text="${text//\\\'/\'}"
   printf '%s' "${text:2:-1}"
+} # printq
+
+setx='printb'
+printb() {
+  printf '%b' "$@"
 } # printq
 
 setx='strip'
@@ -328,7 +334,7 @@ rindex() {
 } # index
 alias strrpos='rindex'
 
-setx=word_wrap
+setx='word_wrap'
 #==============================
 # Returns the given string wrapped at the specified length.
 # Wraps a string to a given number of characters using a string break character.
