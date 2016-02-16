@@ -311,20 +311,14 @@ __dumpNode() {
     value='[ ]'
   fi
   
-  # if ($value === "") $value = '""';
   if [[ -z ${value} ]]; then
     value='""'
   fi
 
-  # if (self::isTranslationWord($value)) {
-  #   $value = $this->_doLiteralBlock($value, $indent);
-  # }
   if __isTranslationWord "${value}"; then
     value="$(__doLiteralBlock -i "${indent}" -v "${value}")"
   fi
 
-  # if (trim ($value) != $value)
-  #   $value = $this->_doLiteralBlock($value, $indent);
   if [[ "$(strip -s "${value}")" != "${value}" ]]; then
     value="$(__doLiteralBlock -i "${indent}" -v "${value}")"
   fi
@@ -336,15 +330,12 @@ __dumpNode() {
     value=$( [[ ${value} ]] && printf true || printf false )
   fi
   
-  # if ($value === null) $value = 'null';
   if __is_null "${value}"; then value='null'; fi
 
-  # if ($value === "'" . self::REMPTY . "'") $value = null;
   if [[ "${value}" == "'$REMPTY'" ]]; then
     value='null'
   fi
   
-  # $spaces = str_repeat(' ',$indent);
   spaces="$(printf '%*s' ${indent})"
   
   # OJO:
@@ -453,9 +444,11 @@ __doFolding() {
       [[ "${value}" != "${REMPTY}" ]]
     then
       value="\"${value}\""
-    fi  
-  # if (is_numeric($value) && is_string($value))
-  #   $value="\"${value}\""
+    fi
+    local rx='[0-9ex\\ ]+'
+    if [[ "${value}" =~ ${rx} ]] && is_scalar "${value}"; then
+      value="\"${value}\""
+    fi
   fi
 
   printf '%s' "${value}"
@@ -622,8 +615,9 @@ setx='__loadWithSource'
 # Returns an array
 #==============================
 __loadWithSource() {
-#($Source)
-#     if (empty ($Source)) return array();
+  local -a Source=( "$@" )
+
+  [[ -n "${Source}" ]] || return 0 # return array();
 
   if [ ${setting_use_syck_is_possible} -ne 0 ] && is_function syck_load; then
     array=( $(syck_load "$(printq "${Source}")") )
@@ -700,11 +694,11 @@ __loadWithSource() {
     done
     (( i-- ))
 
-
-    lineArray=$this->_parseLine($line);
+    # OJO : esto qué
+    lineArray="$(__parseLine "${line}" )"
 
     if [[ -z "${literalBlockStyle}" ]]; then
-      lineArray=$this->revertLiteralPlaceHolder ($lineArray, $literalBlock);
+      lineArray="$(__revertLiteralPlaceHolder -b "${literalBlock}" -- "${lineArray[@]}")"
     fi
 #       $this->addArray($lineArray, $this->indent);
 
@@ -1080,17 +1074,23 @@ __referenceContentsByAlias() {
 } # __referenceContentsByAlias
 
 setx='__addArrayInline'
+# OJO: los path= deberían ser un path+= ??
 #==============================
 __addArrayInline(){
 #($array, $indent)
-#       $CommonGroupPath = $this->path;
-#       if (empty ($array)) return false;
+  local -i indent=$1 ; shift
+  local -A array=( "$@" )
 
-#       foreach ($array as $k => $_) {
+  local -A CommonGroupPath=( "${path[@]}" )
+  [[ -n ${array[*]} ]] || return 1
+
+  for k in "${!array[@]}"; do
+    __="${array[$k]}"
+    __addArray -i "${indent}"
 #         $this->addArray(array($k => $_), $indent);
 #         $this->path = $CommonGroupPath;
-#       }
-#       return true;
+  done
+  return 0
 } # __addArrayInline
 
 setx='__addArray'
@@ -1265,7 +1265,9 @@ __revertLiteralPlaceHolder() {
     esac
   done
   shift $(($OPTIND - 1))
-
+  
+  local -a lineArray=( "${@}" )
+  
   local -i lenLiteralPlaceholder="${#LiteralPlaceHolder}"
 
   for k in "${!lineArray[@]}"; do
