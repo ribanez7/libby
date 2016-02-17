@@ -221,17 +221,17 @@ __yamelize() {
 # OJO!!
   if is_array "${value}"; then
     if [[ -z "${value}" ]]; then
-  #   return $this->_dumpNode($key, array(), $indent, $previous_key, $first_key, $source_array);
-  #   // It has children.  What to do?
-  #   // Make it the right kind of item
-  #   $string = $this->_dumpNode($key, self::REMPTY, $indent, $previous_key, $first_key, $source_array);
-  #   // Add the indent
-  #   $indent += $this->_dumpIndent;
-  #   // Yamlize the array
-  #   $string .= $this->_yamlizeArray($value,$indent);
+# return $this->_dumpNode($key, array(), $indent, $previous_key, $first_key, $source_array);
+# // It has children.  What to do?
+# // Make it the right kind of item
+# $string = $this->_dumpNode($key, self::REMPTY, $indent, $previous_key, $first_key, $source_array);
+# // Add the indent
+# $indent += $this->_dumpIndent;
+# // Yamlize the array
+# $string .= $this->_yamlizeArray($value,$indent);
   elif ! is_array "${value}"; then
-  #   // It doesn't have children.  Yip.
-  #   $string = $this->_dumpNode($key, $value, $indent, $previous_key, $first_key, $source_array);
+# // It doesn't have children.  Yip.
+# $string = $this->_dumpNode($key, $value, $indent, $previous_key, $first_key, $source_array);
   fi
   printf '%s' "${string}"
 } # __yamleize
@@ -255,8 +255,12 @@ __yamelizeArray() {
     for key in "${!array[@]}"; do
       value="${array[$key]}"
       [[ -n "${first_key}" ]] || first_key="${key}"
-      string+="$(__yamelize -k "${key}" -v "${value}" -i ${indent} -p "${previous_key}" -f "${first_key}" -- "${array[@]}" )"
-      #     $string .= $this->_yamlize($key, $value, $indent, $previous_key, $first_key, $array);
+      string+="$(__yamelize -k "${key}" \
+                            -v "${value}" \
+                            -i ${indent} \
+                            -p "${previous_key}" \
+                            -f "${first_key}" \
+                            -- "${array[@]}" )"
       previous_key="${key}"
     done
 
@@ -293,7 +297,7 @@ __dumpNode() {
   done
   shift $(($OPTIND - 1))
 
-  # OJO: función is_string, quizás debería ser un método y no una función en utils
+  # OJO: función is_string, quizás debería ser un método y no utils
   if is_string "${value}" && \
     ( [[ "${value}" =~ ${regex} ]] || [[ "${value: -1:1}" == ':' ]] )
   then
@@ -698,7 +702,8 @@ __loadWithSource() {
     lineArray="$(__parseLine "${line}" )"
 
     if [[ -z "${literalBlockStyle}" ]]; then
-      lineArray="$(__revertLiteralPlaceHolder -b "${literalBlock}" -- "${lineArray[@]}")"
+      lineArray="$(__revertLiteralPlaceHolder -b "${literalBlock}" 
+                                              -- "${lineArray[@]}")"
     fi
 #       $this->addArray($lineArray, $this->indent);
 
@@ -796,87 +801,147 @@ setx='__toType'
 # @return mixed
 #==============================
 __toType() {
-  local value=$1
-#     if ($value === '') return "";
-#     $first_character = $value[0];
-#     $last_character = substr($value, -1, 1);
+  local value="$1"
+  if [[ -z "${value}" ]]; then
+    printf '%s' "${value}"
+    return 0
+  fi
 
-#     $is_quoted = false;
-#     do {
-#       if (!$value) break;
-#       if ($first_character != '"' && $first_character != "'") break;
-#       if ($last_character != '"' && $last_character != "'") break;
-#       $is_quoted = true;
-#     } while (0);
+  first_character="${value:0:1}"
+  last_character="${value: -1:1}"
 
-#     if ($is_quoted) {
-#       $value = str_replace('\n', "\n", $value);
-#       return strtr(substr ($value, 1, -1), array ('\\"' => '"', '\'\'' => '\'', '\\\'' => '\''));
-#     }
+  is_quoted=1 # means false
+  while : ; do
+    [[ -n "${value}" ]] || break
+    if [[ "${first_character}" != '"' ]] && [[ "${first_character}" != "'" ]]
+    then
+      break
+    fi
+    if [[ "${last_character}" != '"'  ]] && [[ "${last_character}" != "'"  ]]
+    then
+      break
+    fi
+    is_quoted=0 # means true
+    break
+  done
 
-#     if (strpos($value, ' #') !== false && !$is_quoted)
-#       $value = preg_replace('/\s+#(.+)$/','',$value);
+  if [ ${is_quoted} -eq 0 ]; then
+    value="$(printf '%b' "${value}")" # substituía literal \n por el autentico.
+                                      # quizás aquí no sea necesario. OJO :
+                                      # haciendo esto ahora lo estamos quitando
+    local strtr="${value:1:-1}"
+    local -A patterns=( 
+      ["\\\""]=\" 
+      [\'\']=\' 
+      [\\\']=\' 
+    )
+    for from in "${!patterns[@]}"; do
+      to="${arr[${from}]}"
+      strtr="${strtr//${from}/${to}}"
+    done
+    printf '%s' "${strtr}"
+    return 0
+  fi
 
-#     if ($first_character == '[' && $last_character == ']') {
-#       // Take out strings sequences and mappings
-#       $innerValue = trim(substr ($value, 1, -1));
-#       if ($innerValue === '') return array();
-#       $explode = $this->_inlineEscape($innerValue);
-#       // Propagate value array
-#       $value  = array();
-#       foreach ($explode as $v) {
-#         $value[] = $this->_toType($v);
-#       }
-#       return $value;
-#     }
+  if [[ "${value}" =~ ' #' ]] && [ ${is_quoted} -ne 0 ]; then
+    local rx="[[:space:]]+#(.+)$"
+    [[ "${value}" =~ ${rx} ]] && value="${value/${BASH_REMATCH[0]}}" || :
+  fi
 
-#     if (strpos($value,': ')!==false && $first_character != '{') {
-#       $array = explode(': ',$value);
-#       $key   = trim($array[0]);
-#       array_shift($array);
-#       $value = trim(implode(': ',$array));
-#       $value = $this->_toType($value);
-#       return array($key => $value);
-#     }
+  if [[ "${first_character}" == '[' ]] && [[ "${last_character}" == ']' ]]
+  then
+    # Take out strings sequences and mappings
+    local innerValue="$(strip -s "${value:1:-1}")"
+    if [[ -z "${innerValue}" ]]; then
+      # OJO : return array();
+      return 0
+    fi
 
-#     if ($first_character == '{' && $last_character == '}') {
-#       $innerValue = trim(substr ($value, 1, -1));
-#       if ($innerValue === '') return array();
-#       // Inline Mapping
-#       // Take out strings sequences and mappings
-#       $explode = $this->_inlineEscape($innerValue);
-#       // Propagate value array
-#       $array = array();
-#       foreach ($explode as $v) {
-#         $SubArr = $this->_toType($v);
-#         if (empty($SubArr)) continue;
-#         if (is_array ($SubArr)) {
-#           $array[key($SubArr)] = $SubArr[key($SubArr)]; continue;
-#         }
-#         $array[] = $SubArr;
-#       }
-#       return $array;
-#     }
+    # OJO : raro.
+    local explode="$(__inlineEscape "${innerValue}")"
+    # Propagate value array
+    value=( $(echo) )
+    local v
+    for v in "${explode[@]}"; do
+      # OJO : revisar en el php las asignaciones arr[] = something. son un +=()
+      # OJO : RECURSION
+      value+=( "$(__toType "${v}")" )
+    done
+    printf '%s\n' "${value[@]}"
+    return 0
+  fi
 
-#     if ($value == 'null' || $value == 'NULL' || $value == 'Null' || $value == '' || $value == '~') {
-#       return null;
-#     }
+  if [[ "${value}" =~ ': ' ]] && [[ "${first_character}" != '{' ]]; then
+    array=( "${value%%: *}" "${value#*: }" )
+    key="$(strip -s "${array[0]}")"
+    value="${array[1]}"
+    # OJO : RECURSION
+    value="$(__toType "${value}")"
+    # OJO: return array($key => $value);
+    printf '%s\n' "${key}" "${value}"
+    return 0
+  fi
 
-#     if ( is_numeric($value) && preg_match ('/^(-|)[1-9]+[0-9]*$/', $value) ){
-#       $intvalue = (int)$value;
+  if [[ "${first_character}" == '{' ]] && [[ "${last_character}" == '}' ]]
+  then
+    innerValue="$(strip -s "${value:1:-1}")"
+    if [[ -z "${innerValue}" ]]; then
+      # Inline Mapping
+      # Take out strings sequences and mappings
+      explode=( "$(__inlineEscape "${innerValue}")" )
+      # Propagate value array
+      array=()
+      for v in "${explode[@]}"; do
+        SubArr=( "$(__toType "${v}")" )
+        [[ -n ${!SubArr[@]} ]] || continue
+        # y ahora viene experimento mío para probar de iterar con puntero sobre
+        # un array:
+        # enviamos todo el array al file descriptor 3 y, una vez allí, usaremos
+        # read para obtener un valor moviendo el puntero linea a linea sin
+        # peligro.
+        # OJO : if (is_array ($SubArr)) {
+        # if ! [ -t 3 ]; then
+        #   exec 3< <(printf '%s\n' "${SubArr[@]}")
+        # fi
+        if ! is_scalar SubArr; then
+          local keysubarr="${!SubArr[0]}" # OJO : realmente se necesita solo el
+                                          # primer valor??
+          array[${keysubarr}]="${SubArr[${keysubarr}]}"
+          # $array[key($SubArr)] = $SubArr[key($SubArr)]
+          continue
+        fi
+        # exec 3>&-
+      done
+      array+=( "${SubArr[@]}" )
+    fi
+    # return $array;
+    printf '%s\n' "${array[@]}"
+    return 0
+  fi
+
+  rx='null|NULL|Null|~'
+  if [[ "${value}" =~ ${rx} ]]; then
+    printf 'null' 
+    return 0
+  fi
+
+  rx='^(-|)[1-9]+[0-9]*$'
+  if [[ "${value}" =~ ${rx} ]]; then
+    local -i intvalue=${value}
 #       if ($intvalue != PHP_INT_MAX)
 #         $value = $intvalue;
-#       return $value;
-#     }
+    printf '%d' "${value}"
+    return 0
+  fi
 
-#     if (is_numeric($value) && preg_match('/^0[xX][0-9a-fA-F]+$/', $value)) {
-#       // Hexadecimal value.
-#       return hexdec($value);
-#     }
+  rx='^0[xX][0-9a-fA-F]+$'
+  if [[ "${value}" =~ ${rx} ]]; then
+    local -i intvalue=${value,,}
+    printf '%x' "${value}"
+    return 0
+  fi
 
-#NOTAS: value=$(coerceValue $value)
-#     $this->coerceValue($value);
-
+# value="$(__coerceValue "${value}")"
 #     if (is_numeric($value)) {
 #       if ($value === '0') return 0;
 #       if (rtrim ($value, 0) === $value)
@@ -884,7 +949,8 @@ __toType() {
 #       return $value;
 #     }
 
-#     return $value;
+  printf '%s' "${value}"
+  return 0
 } # __toType
 
 setx='__inlineEscape'
@@ -895,19 +961,14 @@ setx='__inlineEscape'
 #==============================
 __inlineEscape() {
   local inline="$@" #($inline)
-#     // There's gotta be a cleaner way to do this...
-#     // While pure sequences seem to be nesting just fine,
-#     // pure mappings and mappings with sequences inside can't go very
-#     // deep.  This needs to be fixed.
+  #  There's gotta be a cleaner way to do this...
+  #  While pure sequences seem to be nesting just fine,
+  #  pure mappings and mappings with sequences inside can't go very
+  #  deep.  This needs to be fixed.
 
-#     $seqs = array();
-#     $maps = array();
-#     $saved_strings = array();
-#     $saved_empties = array();
   local -a seqs maps saved_strings saved_empties
 
-#     // Check for empty strings
-#     $regex = '/("")|(\'\')/';
+  # Check for empty strings
 #     if (preg_match_all($regex,$inline,$strings)) {
 #       $saved_empties = $strings[0];
 #       $inline  = preg_replace($regex,'YAMLEmpty',$inline);
