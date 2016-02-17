@@ -173,15 +173,23 @@ dump() {
   _dumpWordWrap=${wordwrap}
   [ ${no_opening_dashes} -eq 0 ] || string="---\n"
 
+  # OJO: no me gusta el if -f.
   # New YAML document
   if [ -f ${array} ]; then
-#       $array = (array)$array;
-#       $previous_key = -1;
-#       foreach ($array as $key => $value) {
-#         if (!isset($first_key)) $first_key = $key;
-#         $string .= $this->_yamlize($key,$value,0,$previous_key, $first_key, $array);
-#         $previous_key = $key;
-#       }
+    array=( "${array}" ) # ¿quizás debería mapfile?
+    local -i previous_key=-1
+    local key value
+    for key in "${!array[@]}"; do
+      value="${array[${key}]}"
+      is_declared first_key || first_key="${key}"
+      string+="$(__yamelize -k "${key}"          \
+                            -v "${value}"        \
+                            -i 0                 \
+                            -p "${previous_key}" \
+                            -f "${first_key}"    \
+                            -- "${array[@]}"     )"
+      previous_key="${key}"
+    done
   fi
   printf '%s\n' "${string}"
 } # dump
@@ -196,7 +204,7 @@ setx='__yamelize'
 # -i $indent       : The indent of the current node
 # -p $previous_key : by default -1
 # -f $first_key    : by default 0
-# -s $source_array : by default none.
+# -- $source_array : by default none.
 #==============================
 __yamelize() {
   local key value
@@ -212,16 +220,21 @@ __yamelize() {
       i) is_integer "$OPTARG" && indent="$OPTARG"       || : ;;
       p) is_integer "$OPTARG" && previous_key="$OPTARG" || : ;;
       f) is_integer "$OPTARG" && first_key="$OPTARG"    || : ;;
-      s) source_array="$OPTARG";;
     esac
   done
   shift $(($OPTIND - 1))
 
-
+  local -a source_array=( "$@" )
+###############################################################################
 # OJO!!
   if is_array "${value}"; then
     if [[ -z "${value}" ]]; then
-# return $this->_dumpNode($key, array(), $indent, $previous_key, $first_key, $source_array);
+        __dumpNode -k "${key}"          \
+                   -v array()           \
+                   -i ${indent}         \
+                   -p "${previous_key}" \
+                   -f "${first_key}"    \
+                   -- "${source_array}"
 # // It has children.  What to do?
 # // Make it the right kind of item
 # $string = $this->_dumpNode($key, self::REMPTY, $indent, $previous_key, $first_key, $source_array);
@@ -234,6 +247,7 @@ __yamelize() {
 # $string = $this->_dumpNode($key, $value, $indent, $previous_key, $first_key, $source_array);
   fi
   printf '%s' "${string}"
+###############################################################################
 } # __yamleize
 
 setx='__yamelizeArray'
@@ -279,10 +293,9 @@ setx='__dumpNode'
 # -i $indent : The indent of the current node
 #==============================
 __dumpNode() {
-#($key, $value, $indent, $previous_key = -1, $first_key = 0, $source_array = null)
-  local key value
+  local key value source_array='null' # OJO: cómo definir source_array?
   local -i indent previous_key=-1 first_key=0 OPTIND=1
-  local -a source_array=()
+  # local -a source_array=()
   local regex="(\n|: |- |\*|#|<|>|%|  |\[|]|\{|}|&|'|!)"
 
   while getopts :k:v:i:p:f:s: opt ; do
@@ -981,7 +994,7 @@ __inlineEscape() {
   fi
   
 
-
+###############################################################################
 #     // Check for strings
 #     $regex = '/(?:(")|(?:\'))((?(1)[^"]+|[^\']+))(?(1)"|\')/';
 #     if (preg_match_all($regex,$inline,$strings)) {
@@ -994,7 +1007,7 @@ __inlineEscape() {
 
 #     $i = 0;
 #     do {
-
+###############################################################################
 #     // Check for sequences
 #     while (preg_match('/\[([^{}\[\]]+)\]/U',$inline,$matchseqs)) {
 #       $seqs[] = $matchseqs[0];
@@ -1016,7 +1029,7 @@ __inlineEscape() {
 #     $stringi = 0; $i = 0;
 
 #     while (1) {
-
+###############################################################################
 #     // Re-add the sequences
 #     if (!empty($seqs)) {
 #       foreach ($explode as $key => $value) {
@@ -1028,7 +1041,7 @@ __inlineEscape() {
 #         }
 #       }
 #     }
-
+###############################################################################
 #     // Re-add the mappings
 #     if (!empty($maps)) {
 #       foreach ($explode as $key => $value) {
@@ -1041,7 +1054,7 @@ __inlineEscape() {
 #       }
 #     }
 
-
+###############################################################################
 #     // Re-add the strings
 #     if (!empty($saved_strings)) {
 #       foreach ($explode as $key => $value) {
@@ -1054,7 +1067,7 @@ __inlineEscape() {
 #       }
 #     }
 
-
+###############################################################################
 #     // Re-add the empties
 #     if (!empty($saved_empties)) {
 #       foreach ($explode as $key => $value) {
@@ -1122,7 +1135,8 @@ __referenceContentsByAlias() {
       break
     fi
   done
-  
+
+###############################################################################
 #     do {
 #       if (!isset($this->SavedGroups[$alias])) { echo "Bad group name: $alias."; break; }
 #       $groupPath = $this->SavedGroups[$alias];
@@ -1159,7 +1173,7 @@ setx='__addArray'
 __addArray() {
 #($incoming_data, $incoming_indent)
 #    // print_r ($incoming_data);
-
+###############################################################################
 #     if (count ($incoming_data) > 1)
 #       return $this->addArrayInline ($incoming_data, $incoming_indent);
 
@@ -1177,7 +1191,7 @@ __addArray() {
 #       return;
 #     }
 
-
+###############################################################################
 
 #     $history = array();
 #     // Unfolding inner array tree.
@@ -1191,7 +1205,7 @@ __addArray() {
 #       $this->_containsGroupAlias = false;
 #     }
 
-
+###############################################################################
 #     // Adding string or numeric key to the innermost level or $this->arr.
 #     if (is_string($key) && $key == '<<') {
 #       if (!is_array ($_arr)) { $_arr = array (); }
@@ -1217,7 +1231,7 @@ __addArray() {
 #     $this->result = $reverse_history[$cnt];
 
 #     $this->path[$incoming_indent] = $key;
-
+###############################################################################
 #     if ($this->_containsGroupAnchor) {
 #       $this->SavedGroups[$this->_containsGroupAnchor] = $this->path;
 #       if (is_array ($value)) {
@@ -1423,7 +1437,7 @@ __clearBiggerPathValues() {
   done
   shift $(($OPTIND - 1))
 
-  [ ${indent} -ne 0 ] || path=( ) #     if ($indent == 0) $this->path = array();
+  [ ${indent} -ne 0 ] || path=( ) # if ($indent == 0) $this->path = array();
   [[ -n ${path} ]]    || return 0
 
 #     foreach ($this->path as $k => $_) {
@@ -1788,3 +1802,4 @@ main() {
 } # main
 main
 # _exit
+###############################################################################
