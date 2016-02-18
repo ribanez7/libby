@@ -982,54 +982,65 @@ __inlineEscape() {
   local -a seqs maps saved_strings saved_empties
 
   # Check for empty strings
-#     if (preg_match_all($regex,$inline,$strings)) {
-#       $saved_empties = $strings[0];
-#       $inline  = preg_replace($regex,'YAMLEmpty',$inline);
-#     }
-#     unset($regex);
+  # OJO : +=() Ó =() ?
   local regex="(\"\")|('')"
   if [[ "${inline}" =~ ${regex} ]]; then
     saved_empties+=( "${BASH_REMATCH[0]}" )
-    inline=preg_replace($regex,'YAMLEmpty',$inline);
+    inline="${inline//${BASH_REMATCH[0]}/YAMLEmpty}"
+    # inline=preg_replace($regex,'YAMLEmpty',$inline);
   fi
-  
+  unset regex
 
+  # Check for strings
+  # local regex="(?:(\")|(?:\'))((?(1)[^\"]+|[^\']+))(?(1)\"|\')"
+  # May be the ideal regexes for this would be: (')([^'].*)(')
+  local regexSingle="(')([^']+)(')"
+  local regexDouble='(")([^"]+)(")'
+  if [[ "${inline}" =~ ${regexSingle} ]]; then
+    saved_strings+=( "${BASH_REMATCH[0]}" )
+    inline="${inline//${BASH_REMATCH[0]}/YAMLString}"
+  elif [[ "${inline}" =~ ${regexDouble} ]]; then
+    saved_strings+=( "${BASH_REMATCH[0]}" )
+    inline="${inline//${BASH_REMATCH[0]//\"/\\\"}/YAMLString}"
+  fi
+  unset regexSingle regexDouble
+
+  # OJO : si esto diera problemas, pasaremos al extended globbing y abandona
+  # ríamos las regular expressions. extglob + case.
+  local -i i=0
+
+  while : ; do
+    # Check for sequences:
+    local regex='\[([^]\[\{}]+)\]' replacement
+    while [[ "${inline}" =~ ${regex} ]]; do
+      seqs+=( "${BASH_REMATCH[0]}" )
+      replacement="YAMLSeq$(( ${#seqs[@]} - 1 ))s"
+      inline="${inline/${BASH_REMATCH[0]/\\\]/\\\]}/${replacement}}"
+    done
+    unset regex replacement
+
+    # Check for mappings
+    local regex='\{([^]\[\{}]+)}' replacement
+    while [[ "${inline}" =~ ${regex} ]]; do
+      maps+=( "${BASH_REMATCH[0]}" )
+      replacement="YAMLMap$(( ${#maps[@]} - 1 ))s"
+      inline="${inline/${BASH_REMATCH[0]/\\\]/\\\]}/${replacement}}"
+    done
+    unset regex replacement
+
+    (( i++ < 10 )) || break
+
+    if [[ "${inline}" =~ '[' ]] || [[ "${inline}" =~ '{' ]] ; then
+      break
+    fi
+  done
 ###############################################################################
-#     // Check for strings
-#     $regex = '/(?:(")|(?:\'))((?(1)[^"]+|[^\']+))(?(1)"|\')/';
-#     if (preg_match_all($regex,$inline,$strings)) {
-#       $saved_strings = $strings[0];
-#       $inline  = preg_replace($regex,'YAMLString',$inline);
-#     }
-#     unset($regex);
-
-#     // echo $inline;
-
-#     $i = 0;
-#     do {
-###############################################################################
-#     // Check for sequences
-#     while (preg_match('/\[([^{}\[\]]+)\]/U',$inline,$matchseqs)) {
-#       $seqs[] = $matchseqs[0];
-#       $inline = preg_replace('/\[([^{}\[\]]+)\]/U', ('YAMLSeq' . (count($seqs) - 1) . 's'), $inline, 1);
-#     }
-
-#     // Check for mappings
-#     while (preg_match('/{([^\[\]{}]+)}/U',$inline,$matchmaps)) {
-#       $maps[] = $matchmaps[0];
-#       $inline = preg_replace('/{([^\[\]{}]+)}/U', ('YAMLMap' . (count($maps) - 1) . 's'), $inline, 1);
-#     }
-
-#     if ($i++ >= 10) break;
-
-#     } while (strpos ($inline, '[') !== false || strpos ($inline, '{') !== false);
 
 #     $explode = explode(',',$inline);
 #     $explode = array_map('trim', $explode);
 #     $stringi = 0; $i = 0;
 
 #     while (1) {
-###############################################################################
 #     // Re-add the sequences
 #     if (!empty($seqs)) {
 #       foreach ($explode as $key => $value) {
@@ -1130,22 +1141,19 @@ __referenceContentsByAlias() {
   local alias=$1
 
   while : ; do
-      echo
-    if ! : ; then
-      break
-    fi
+    # if (!isset($this->SavedGroups[$alias])) { 
+    #   echo "Bad group name: $alias."; 
+    #   break; 
+    # }
+    # $groupPath = $this->SavedGroups[$alias];
+    # $value = $this->result;
+    # foreach ($groupPath as $k) {
+    #   $value = $value[$k];
+    # }
+    break
   done
 
-###############################################################################
-#     do {
-#       if (!isset($this->SavedGroups[$alias])) { echo "Bad group name: $alias."; break; }
-#       $groupPath = $this->SavedGroups[$alias];
-#       $value = $this->result;
-#       foreach ($groupPath as $k) {
-#         $value = $value[$k];
-#       }
-#     } while (false);
-#     return $value;
+  # return $value;
 } # __referenceContentsByAlias
 
 setx='__addArrayInline'
