@@ -23,6 +23,7 @@
 # We'll have problems with the variable scope. It will be necessary to
 # dynamically scope them. Now, the 95% of them are local.
 # see: http://mywiki.wooledge.org/BashFAQ/084
+# Revisar los workaround del clásico explode.
 
 
 # BASH SETTINGS:
@@ -969,15 +970,14 @@ __toType() {
 setx='__inlineEscape'
 #==============================
 # Used in inlines to check for more inlines or quoted strings
-# @access private
-# @return array
+# Prints out an array
 #==============================
 __inlineEscape() {
   local inline="$@" #($inline)
-  #  There's gotta be a cleaner way to do this...
-  #  While pure sequences seem to be nesting just fine,
-  #  pure mappings and mappings with sequences inside can't go very
-  #  deep.  This needs to be fixed.
+  # There's gotta be a cleaner way to do this...
+  # While pure sequences seem to be nesting just fine,
+  # pure mappings and mappings with sequences inside can't go very
+  # deep.  This needs to be fixed.
 
   local -a seqs maps saved_strings saved_empties
 
@@ -1030,89 +1030,110 @@ __inlineEscape() {
 
     (( i++ < 10 )) || break
 
-    if [[ "${inline}" =~ '[' ]] || [[ "${inline}" =~ '{' ]] ; then
+    if [[ ! "${inline}" =~ '[' ]] || [[ ! "${inline}" =~ '{' ]] ; then
       break
     fi
   done
-###############################################################################
 
-#     $explode = explode(',',$inline);
-#     $explode = array_map('trim', $explode);
-#     $stringi = 0; $i = 0;
+  local -a explode
+  IFS=, read -r -a explode <<<"${inline[@]}"
 
-#     while (1) {
-#     // Re-add the sequences
-#     if (!empty($seqs)) {
-#       foreach ($explode as $key => $value) {
-#         if (strpos($value,'YAMLSeq') !== false) {
-#           foreach ($seqs as $seqk => $seq) {
-#             $explode[$key] = str_replace(('YAMLSeq'.$seqk.'s'),$seq,$value);
-#             $value = $explode[$key];
-#           }
-#         }
-#       }
-#     }
-###############################################################################
-#     // Re-add the mappings
-#     if (!empty($maps)) {
-#       foreach ($explode as $key => $value) {
-#         if (strpos($value,'YAMLMap') !== false) {
-#           foreach ($maps as $mapk => $map) {
-#             $explode[$key] = str_replace(('YAMLMap'.$mapk.'s'), $map, $value);
-#             $value = $explode[$key];
-#           }
-#         }
-#       }
-#     }
+  local el
+  local -a els
+    for el in "${explode[@]}"; do
+      els+=( "$(strip -s "${el}")" )
+    done
+    explode=( "${els[@]}" )
+  unset el els
 
-###############################################################################
-#     // Re-add the strings
-#     if (!empty($saved_strings)) {
-#       foreach ($explode as $key => $value) {
-#         while (strpos($value,'YAMLString') !== false) {
-#           $explode[$key] = preg_replace('/YAMLString/',$saved_strings[$stringi],$value, 1);
-#           unset($saved_strings[$stringi]);
-#           ++$stringi;
-#           $value = $explode[$key];
-#         }
-#       }
-#     }
+  local -i stringi=0 i=0
 
-###############################################################################
-#     // Re-add the empties
-#     if (!empty($saved_empties)) {
-#       foreach ($explode as $key => $value) {
-#         while (strpos($value,'YAMLEmpty') !== false) {
-#           $explode[$key] = preg_replace('/YAMLEmpty/', '', $value, 1);
-#           $value = $explode[$key];
-#         }
-#       }
-#     }
+  # OJO : es posible que en los seqv haya que hacer el trick de backslashes.
+  # lo aplicamos ahora, por si las moscas.
+  while : ; do
+    # Re-add the sequences
+    if [[ -n ${seqs[@]} ]]; then
+      for key in "${!explode[@]}"; then
+        value="${explode[$key]}"
+        if [[ "${value}" =~ 'YAMLSeq' ]]; then
+          for seqk in "${!seqs[@]}"; do
+            seqv="${seqs[$seqk]}"
+            replacement="YAMLSeq${seqk}s"
+            explode[$key]="${value//${replacement}/${seqv/\\\]/\\\]}}"
+            value="${explode[$key]}"
+          done
+        fi
+      done
+    fi
 
-#     $finished = true;
-#     foreach ($explode as $key => $value) {
-#       if (strpos($value,'YAMLSeq') !== false) {
-#         $finished = false; break;
-#       }
-#       if (strpos($value,'YAMLMap') !== false) {
-#         $finished = false; break;
-#       }
-#       if (strpos($value,'YAMLString') !== false) {
-#         $finished = false; break;
-#       }
-#       if (strpos($value,'YAMLEmpty') !== false) {
-#         $finished = false; break;
-#       }
-#     }
-#     if ($finished) break;
+    # Re-add the mappings
+    if [[ -n ${maps[@]} ]]; then
+      for key in "${!explode[@]}"; then
+        value="${explode[$key]}"
+        if [[ "${value}" =~ 'YAMLMap' ]]; then
+          for mapk in "${!maps[@]}"; do
+            mapv="${maps[$mapk]}"
+            replacement="YAMLMap${mapk}s"
+            explode[$key]="${value//${replacement}/${mapv/\\\]/\\\]}}"
+            value="${explode[$key]}"
+          done
+        fi
+      done
+    fi
 
-#     $i++;
-#     if ($i > 10)
-#       break; // Prevent infinite loops.
-#     }
+    # Re-add the strings
+    if [[ -n ${saved_strings[@]} ]]; then
+      for key in "${!explode[@]}"; then
+        value="${explode[$key]}"
+        while [[ "${value}" =~ 'YAMLString' ]]; do
+          replacement="${saved_strings[$stringi]}"
+          explode[$key]="${value/YAMLString/${replacement}}"
+          unset saved_strings[$stringi]
+          (( ++stringi ))
+          value="${explode[$key]}"
+        done
+      done
+    fi
 
+    # Re-add the empties
+    if [[ -n ${saved_empties[@]} ]]; then
+      for key in "${!explode[@]}"; then
+        value="${explode[$key]}"
+        while [[ "${value}" =~ 'YAMLEmpty' ]]; do
+          explode[$key]="${value/YAMLEmpty}"
+          value="${explode[$key]}"
+        done
+      done
+    fi
 
-#     return $explode;
+    finished=0 # means true
+    for key in "${!explode[@]}"; then
+      value="${explode[$key]}"
+      if [[ "${value}" =~ 'YAMLSeq' ]]; then
+        finished=1
+        break
+      fi
+      if [[ "${value}" =~ 'YAMLMap' ]]; then
+        finished=1
+        break
+      fi
+      if [[ "${value}" =~ 'YAMLString' ]]; then
+        finished=1
+        break
+      fi
+      if [[ "${value}" =~ 'YAMLEmpty' ]]; then
+        finished=1
+        break
+      fi
+    done
+
+    [ ${finished} -ne 0 ] || break
+
+    (( i++ ))
+    [ $i -le 10 ] || break
+  done
+
+  printf '%s\n' "${explode[@]}"
 } # __inlineEscape
 
 setx='__literalBlockContinues'
@@ -1810,4 +1831,4 @@ main() {
 } # main
 main
 # _exit
-###############################################################################
+# --------------------------------------------------------------------------- #
