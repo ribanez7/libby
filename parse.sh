@@ -24,7 +24,12 @@
 # dynamically scope them. Now, the 95% of them are local.
 # see: http://mywiki.wooledge.org/BashFAQ/084
 # Revisar los workaround del clásico explode.
-
+# 
+# La clave de todo va a estar en los siguientes métodos:
+# array_send
+# array_receive
+#   indexed_receive
+#   associative_receive
 
 # BASH SETTINGS:
 # ==============
@@ -1182,73 +1187,114 @@ setx='__addArrayInline'
 #==============================
 __addArrayInline(){
 #($array, $indent)
-  local -i indent=$1 ; shift
-  local -A array=( "$@" )
+  local -i indent OPTIND=1
+
+  while getopts :i: opt ; do
+    case "$opt" in
+      i) is_integer "$OPTARG" && incoming_indent="$OPTARG" || : ;;
+    esac
+  done
+  shift $(($OPTIND - 1))
+
+  # tenemos que determinar si es array simple o asociativo.
+  # podríamos quizás [[ "$*" =~ [^]\[\()=\'\"] ]]
+  local array="$(eval printf '%s' "$@")"
 
   local -A CommonGroupPath=( "${path[@]}" )
   [[ -n ${array[*]} ]] || return 1
 
   for k in "${!array[@]}"; do
     __="${array[$k]}"
-    __addArray -i "${indent}"
-#         $this->addArray(array($k => $_), $indent);
-#         $this->path = $CommonGroupPath;
+    __addArray -i "${indent}" -- "'([${k}]=\"${__}\")'"
+    path="${CommonGroupPath[@]}"
   done
   return 0
 } # __addArrayInline
 
 setx='__addArray'
 #==============================
+# 
+# 
+# -i <integer>      : the $incoming_indent
+# -- $incoming_data : any data is welcome
+#==============================
 __addArray() {
 #($incoming_data, $incoming_indent)
-#    // print_r ($incoming_data);
+  # OJO : cómo pasar matrices asociativas?
+  local -a incoming_data
+  local -i incoming_indent OPTIND=1
+
+  while getopts :i: opt ; do
+    case "$opt" in
+      i) is_integer "$OPTARG" && incoming_indent="$OPTARG" || : ;;
+    esac
+  done
+  shift $(($OPTIND - 1))
+
+  incoming_data=( "$@" )
+
+  if [ "${#incoming_data}" -gt 1 ]; then
+    __addArrayInline -i ${incoming_indent} -- "${incoming_data[@]}"
+    # º #  # OJO CON LAS GUARRADAS DE LOS ARRAYS INDEXADOS Y ASOCIATIVOS.
+    # º #  Incoming_Data="$(declare -p incoming_data)"
+    # º #  Incoming_Data="${Incoming_Data#*=}"
+    # º #  __addArrayInline -i ${incoming_indent} -- "${Incoming_Data}"
+  fi
+
+  read -r key _ <<<"${!incoming_data[@]}"
+  if [[ -n ${incoming_data[$key]} ]]; then
+    value="${incoming_data[$key]}"
+  else
+    value=null
+  fi
+
+  [[ "${key}" != '__!YAMLZero' ]] || key='0'
+
+  if [ ${incoming_indent} -eq 0 ]    && \
+    [[ -z ${_containsGroupAlias} ]]  && \
+    [[ -z ${_containsGroupAnchor} ]] && \
+  then
+    if [[ -n ${key} ]] || [[ ${key} == "''" ]] || [ ${key} -eq 0 ]; then
+      result[$key]="${value}"
+    else
+      result+=( "${value}" )
+      local indices="${!result[@]}"
+      key="${indices##* }"
+    fi
+    path[$incoming_indent]="${key}"
+    return 0
+  fi
+
+  local -a history
+  # Unfolding inner array tree.
+
+  # OJO : CHUNGUERÍO
+  history+=( "${@result[@]}" )
+  # $history[] = $_arr = $this->result;
+  # foreach ($this->path as $k) {
+  #   $history[] = $_arr = $_arr[$k];
+  # }
+
+  if ($this->_containsGroupAlias); then
+    value="$(__referenceContentsByAlias "${_containsGroupAlias}")"
+    _containsGroupAlias=false
+  fi
+
 ###############################################################################
-#     if (count ($incoming_data) > 1)
-#       return $this->addArrayInline ($incoming_data, $incoming_indent);
-
-#     $key = key ($incoming_data);
-#     $value = isset($incoming_data[$key]) ? $incoming_data[$key] : null;
-#     if ($key === '__!YAMLZero') $key = '0';
-
-#     if ($incoming_indent == 0 && !$this->_containsGroupAlias && !$this->_containsGroupAnchor) { // Shortcut for root-level values.
-#       if ($key || $key === '' || $key === '0') {
-#         $this->result[$key] = $value;
-#       } else {
-#         $this->result[] = $value; end ($this->result); $key = key ($this->result);
-#       }
-#       $this->path[$incoming_indent] = $key;
-#       return;
-#     }
-
-###############################################################################
-
-#     $history = array();
-#     // Unfolding inner array tree.
-#     $history[] = $_arr = $this->result;
-#     foreach ($this->path as $k) {
-#       $history[] = $_arr = $_arr[$k];
-#     }
-
-#     if ($this->_containsGroupAlias) {
-#       $value = $this->referenceContentsByAlias($this->_containsGroupAlias);
-#       $this->_containsGroupAlias = false;
-#     }
-
-###############################################################################
-#     // Adding string or numeric key to the innermost level or $this->arr.
-#     if (is_string($key) && $key == '<<') {
+  # Adding string or numeric key to the innermost level or $this->arr.
+  if ! is_integer $key && [[ "${key}" == '<<' ]]; then
 #       if (!is_array ($_arr)) { $_arr = array (); }
 
 #       $_arr = array_merge ($_arr, $value);
-#     } else if ($key || $key === '' || $key === '0') {
+  elif [[ -n ${key} ]] || [[ ${key} == "''" ]] || [ ${key} -eq 0 ]; then
 #       if (!is_array ($_arr))
 #         $_arr = array ($key=>$value);
 #       else
 #         $_arr[$key] = $value;
-#     } else {
+  else
 #       if (!is_array ($_arr)) { $_arr = array ($value); $key = 0; }
 #       else { $_arr[] = $value; end ($_arr); $key = key ($_arr); }
-#     }
+  fi
 
 #     $reverse_path = array_reverse($this->path);
 #     $reverse_history = array_reverse ($history);
