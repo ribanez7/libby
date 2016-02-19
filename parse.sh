@@ -36,18 +36,18 @@
 #
 # Hecho. Ejemplo de uso:
 
-saluda() { 
-  local a2r="$(array_receive nueva "$1")"
-  eval $a2r
-  for i in "${!nueva[@]}"; do
-    echo key=$i , value="${nueva[$i]}"
-  done
-}
-hola() { 
-  local -A translations=([apple]="manzana" [lemon]="limon" [banana]="platano" )
-  a2send="$(array_send translations)"
-  saluda "${a2send}"
-}
+# saluda() { 
+#   local a2r="$(array_receive nueva "$1")"
+#   eval $a2r
+#   for i in "${!nueva[@]}"; do
+#     echo key=$i , value="${nueva[$i]}"
+#   done
+# }
+# hola() { 
+#   local -A translations=([apple]="manzana" [lemon]="limon" [banana]="platano" )
+#   a2send="$(array_send translations)"
+#   saluda "${a2send}"
+# }
 
 
 # BASH SETTINGS:
