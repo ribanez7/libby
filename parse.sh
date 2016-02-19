@@ -25,11 +25,30 @@
 # see: http://mywiki.wooledge.org/BashFAQ/084
 # Revisar los workaround del clásico explode.
 # 
-# La clave de todo va a estar en los siguientes métodos:
-# array_send
-# array_receive
-#   indexed_receive
-#   associative_receive
+# La clave de todo va a estar en los siguientes métodos en utils:
+# [ x ] array_send
+# [ x ]   indexed_send
+# [ x ]   associative_send
+# [ x ] array_receive
+# [ x ]   indexed_receive
+# [ x ]   associative_receive
+#
+#
+# Hecho. Ejemplo de uso:
+
+saluda() { 
+  local a2r="$(array_receive nueva "$1")"
+  eval $a2r
+  for i in "${!nueva[@]}"; do
+    echo key=$i , value="${nueva[$i]}"
+  done
+}
+hola() { 
+  local -A translations=([apple]="manzana" [lemon]="limon" [banana]="platano" )
+  a2send="$(array_send translations)"
+  saluda "${a2send}"
+}
+
 
 # BASH SETTINGS:
 # ==============

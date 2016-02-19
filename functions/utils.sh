@@ -427,6 +427,30 @@ array_join() {
   printf "%s" "${@/#/$del}"
 } # array_join
 
+array_send() {
+  local array="$1"
+  local message="$(declare -p "${array}")"
+
+  message="${message#*=}"
+
+  if is_array "${array}"; then
+    printf 'a%s' "${message}"
+    return 0
+  elif is_hash "${array}"; then
+    printf 'A%s' "${message}"
+    return 0
+  else
+    return 1
+  fi
+} # array_send
+
+array_receive() { 
+  local array_name=$1
+  shift
+  local array="$@"
+  printf 'local -%s %s=%s' "${array:0:1}" "${array_name}" "${array:2:-1}"
+} # array_receive
+
 #==============================================================================
 # MISCELANEA:
 #==============================================================================
